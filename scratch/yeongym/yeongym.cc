@@ -147,23 +147,31 @@ int main(int argc, char* argv[])
     mobility.Install(ueNodes);
     mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
 
+    std::vector<bool> isMobile(ueNum, false);
+    std::vector<uint32_t> indices(ueNum);
+    for (uint32_t i=0;i<ueNum;i++)
+    {
+        indices[i]=i;
+    }
+    std::shuffle(indices.begin(), indices.end(), std::mt19937(std::random_device()()));
+
     for (uint32_t i = 0; i < ueNum; i++)
     {
-        Ptr<ConstantVelocityMobilityModel> mob =
-            gridScenario.GetUserTerminals().Get(i)->GetObject<ConstantVelocityMobilityModel>();
+        Ptr<ConstantVelocityMobilityModel> mob = ueNodes.Get(indices[i])->GetObject<ConstantVelocityMobilityModel>();
         if (!mob)
         {
-            NS_FATAL_ERROR("ConstantVelocityMobilityModel not found for UE " << i);
+            NS_FATAL_ERROR("ConstantVelocityMobilityModel not found for UE " << indices[i]);
         }
         if (i < ueNum * 0.2)
         {
             mob->SetVelocity(Vector(27.28, 0, 0));
+            isMobile[indices[i]]=true;
             NS_LOG_INFO("UE " << i << " set to 100km/h (car)");
         }
         else
         {
             mob->SetVelocity(Vector(0, 0, 0));
-            NS_LOG_INFO("UE " << i << " set to 0km/h (Indoor)");
+            NS_LOG_INFO("UE " << indices[i] << " set to 0km/h (Indoor)");
         }
     }
 
@@ -172,6 +180,44 @@ int main(int argc, char* argv[])
     Ptr<NrPointToPointEpcHelper> epcHelper = CreateObject<NrPointToPointEpcHelper>();
     nrHelper->SetEpcHelper(epcHelper);
 
+    // Set Scheduler Type (TODO)
+    // 5g ofdma (rr, pf, aoi-greedy, RL based . . .)
+
+
+    // Disable SRS (for data drop)
+    nrHelper->SetSchedulerAttribute("SrsSymbols", UintegerValue(0));
+
+    // Disable HARQ (for data drop)
+    nrHelper->SetSchedulerAttribute("EnableHarqReTx", BooleanValue(false));
+    Config::SetDefault("ns3::NrHelper::HarqEnabled", BooleanValue(false));
+    
+    // Set channel update period
+    Config::SetDefault("ns3::ThreeGppChannelModel::UpdatePeriod", TimeValue(MilliSeconds(100)));    // 100ms 마다 채널 상태 갱신
+
+    // Set mcs
+    nrHelper->SetSchedulerAttribute("FixedMcsUl", BooleanValue(true));
+    nrHelper->SetSchedulerAttribute("StartingMcsUl", UintegerValue(12));
+    nrHelper->SetSchedulerAttribute("FixedMcsDl", BooleanValue(true));
+    nrHelper->SetSchedulerAttribute("StartingMcsDl", UintegerValue(4));
+    
+    // Set forpathloss and shadowing (에러 없는 환경은 false)
+    nrHelper->SetPathlossAttribute("ShadowingEnabled", BooleanValue(true));
+
+    // Set error model
+    std::string errorModel = "ns3::NrEesmIrT1";
+    nrHelper->SetUlErrorModel(errorModel);
+    nrHelper->SetDlErrorModel(errorModel);
+    nrHelper->SetGnbDlAmcAttribute("AmcModel", EnumValue(NrAmc::ErrorModel));
+    nrHelper->SetGnbUlAmcAttribute("AmcModel", EnumValue(NrAmc::ErrorModel));
+
+    // Set fading
+    bool fadingEnabled = true;
+    auto bandMask = NrHelper::INIT_PROPAGATION | NrHelper::INIT_CHANNEL;
+    if (fadingEnabled)
+    {
+        bandMask |= NrHelper::INIT_FADING;
+    }
+
     // Bandwidth environment for urban coverage for massive connection
     BandwidthPartInfoPtrVector allBwps;
     CcBwpCreator ccBwpCreator;
@@ -179,7 +225,6 @@ int main(int argc, char* argv[])
                                                     bandwidthBand1,
                                                     1,
                                                     BandwidthPartInfo::UMa_nLoS);
-
     OperationBandInfo band1 = ccBwpCreator.CreateOperationBandContiguousCc(bandConf1);
     nrHelper->InitializeOperationBand(&band1);
     allBwps = CcBwpCreator::GetAllBwps({band1});
@@ -188,6 +233,13 @@ int main(int argc, char* argv[])
     NetDeviceContainer enbNetDev =
         nrHelper->InstallGnbDevice(gridScenario.GetBaseStations(), allBwps);
     NetDeviceContainer ueNetDev = nrHelper->InstallUeDevice(ueNodes, allBwps);
+    
+    // Set IP
+    InternetStackHelper internet;
+    internet.Install(ueNodes);
+    Ipv4InterfaceContainer ueIpIface = epcHelper->AssignUeIpv4Address(ueNetDev);
+
+    // Attach UE and gNB
     nrHelper->AttachToClosestGnb(ueNetDev, enbNetDev);
 
     
