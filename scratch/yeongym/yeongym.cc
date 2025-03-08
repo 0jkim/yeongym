@@ -242,5 +242,19 @@ int main(int argc, char* argv[])
     // Attach UE and gNB
     nrHelper->AttachToClosestGnb(ueNetDev, enbNetDev);
 
-    
+    // Set Uplink Traffic
+    std::vector<Ptr<MyModel>> v_modelUl(ueNum);
+    std::random_device rd;
+    for (uint32_t i=0;i<ueNum;i++)
+    {
+        v_modelUl[i] = CreateObject<MyModel>();
+        v_modelUl[i]->Setup(ueNetDev.Get(i), enbNetDev.Get(0)->GetAddress(),nPackets, simTime, isMobile[i], rd());
+    }
+
+    nrHelper->EnableTraces();
+    Simulator::Stop(Seconds(simTime));
+    Simulator::Run();
+    Simulator::Destroy();
+
+    return 0;
 }
