@@ -108,6 +108,17 @@ class NrUeMac : public Object
 
   public:
     /**
+     * UE별 패킷 생성 시간 큐를 map으로 구성함.
+     * BSR이 갱신될때마다 insert.
+     * 데이터를 gNB에서 제대로 수신했으면 HARQ ACK를 보내는데 이때는 delete.
+     * 
+     * 업데이트는 위와 같이 구성하고 gNB에게 <ue,queue> map을 보낼때는
+     * DoReportBSR 메서드에서 NrBsrMessage에 파라미터로 큐를 넣고
+     * m_phySapProvider에서 SendControlMessage를 통해서 gNB에 송신할 예정
+     */
+    std::unordered_map<uint16_t, uint64_t> ue_mac_packet_Ctime_Map;
+
+    /**
      * \brief Get the Type id
      * \return the type id
      */
