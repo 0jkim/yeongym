@@ -5,6 +5,7 @@
 #ifndef NR_UE_MAC_H
 #define NR_UE_MAC_H
 
+#include <queue>
 #include "nr-ccm-mac-sap.h"
 #include "nr-phy-mac-common.h"
 #include "nr-ue-cmac-sap.h"
@@ -116,7 +117,7 @@ class NrUeMac : public Object
      * DoReportBSR 메서드에서 NrBsrMessage에 파라미터로 큐를 넣고
      * m_phySapProvider에서 SendControlMessage를 통해서 gNB에 송신할 예정
      */
-    std::unordered_map<uint16_t, uint64_t> ue_mac_packet_Ctime_Queue_Map;
+    std::unordered_map<uint16_t, std::queue<uint64_t>> ue_mac_packet_Ctime_Queue_Map;
 
     /**
      * \brief Get the Type id
