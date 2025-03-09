@@ -1,3 +1,13 @@
+/**
+ * TODO : nr-gnb-mac
+ * 1. ue-mac에서 받은 queue를 scheduler로 보내기(계산해서 or 그대로 보낼지는 고민)
+ * 2. ns3-gym environment gateway를 gnb-mac or ofdma-scheduler 에서 구현할지 고민 
+      (스케줄링은 여기서 하는게 아니라 ofdma-scheduler에서 진행하기 때문 ..
+ * 3. 비교 AoI 스케줄링 기법 무엇으로 할지 결정
+      (만약, 추가로 평균 AoI 출력을 위한 )
+ */
+
+
 // Copyright (c) 2019 Centre Tecnologic de Telecomunicacions de Catalunya (CTTC)
 //
 // SPDX-License-Identifier: GPL-2.0-only
@@ -13,10 +23,11 @@
 #include "nr-mac-scheduler.h"
 #include "nr-phy-mac-common.h"
 #include "nr-phy-sap.h"
+#include <queue>
 
 #include <ns3/traced-callback.h>
 
-#include "ns3/opengym-module.h" // ns3-gym 헤더파일
+// #include "ns3/opengym-module.h" // ns3-gym 헤더파일
 
 namespace ns3
 {
@@ -24,6 +35,19 @@ namespace ns3
 class NrControlMessage;
 class NrRarMessage;
 class BeamId;
+
+/*
+ * 평균 AoI 계산 및 출력을 위한 gNB에서 UE 정보를 관리하는 구조체 선언
+ */
+struct UeInfo
+{
+    uint64_t info_lastPacketCreationTime; // SR 메시지에 포함되어 있는 패킷 생성 시간을 저장하는 변수
+    uint64_t info_before_scheduling_time; // 스케줄러에게 파라미터를 보내는 시점이 저장되는 변수
+    uint64_t info_current_aoi;  // 스케줄러가 파라미터로 사용할 AoI를 저장하는 변수
+    uint32_t info_wma=1;  // 데이터 전송 성공에 대한 카운트 수치 (gNB용)
+    bool info_last_transmission_successful; // 이전 데이터 전송 성공 여부를 판단하기 위한 변수
+};
+
 
 /**
  * TODO
@@ -37,29 +61,29 @@ class BeamId;
  * 7. bool ExecuteActions(Ptr<OpenGymDataContainer> action)
  */
 
-Ptr<OpenGymSpace> MyGetObservationSpace(){
+// Ptr<OpenGymSpace> MyGetObservationSpace(){
 
-}
+// }
 
-Ptr<OpenGymSpace> MyGetObservation(){
+// Ptr<OpenGymSpace> MyGetObservation(){
 
-}
+// }
 
-Ptr<OpenGymSpace> MyGetActionSpace(){
+// Ptr<OpenGymSpace> MyGetActionSpace(){
 
-}
+// }
 
-float MyGetReward(){
+// float MyGetReward(){
 
-}
+// }
 
-bool MyGetGameOver(){
+// bool MyGetGameOver(){
 
-}
+// }
 
-bool MyExecuteAction(Ptr<OpenGymDataContainer> action){
+// bool MyExecuteAction(Ptr<OpenGymDataContainer> action){
 
-}
+// }
 
 // ExtraInfo 나중에 추가
 
@@ -95,6 +119,13 @@ class NrGnbMac : public Object
     friend class MemberNrCcmMacSapProvider<NrGnbMac>;
 
   public:
+    /**
+     * UE별 패킷 생성 시간 큐를 map으로 구성함.
+     * BSR을 받을 때, Queue도 함께 받음
+     * 따라서 <rnti, packetCreationTimeQueue> map을 저장할 멤버 변수 선언
+     */
+    std::unordered_map<uint16_t, std::queue<uint64_t>> gnb_mac_Ctime_queue_map;
+
     /**
      * \brief Get the TypeId
      * \return the TypeId
