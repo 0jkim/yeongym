@@ -1,6 +1,14 @@
+/**
+ * TODO - nr-ue-mac
+ * 1. Packets Queue Delete를 HARQ ACK 수신으로 처리하기
+ * 2. HARQ를 못쓰는 환경일 때, delete 어떻게 할지 고민
+ */
+
+
 // Copyright (c) 2019 Centre Tecnologic de Telecomunicacions de Catalunya (CTTC)
 //
 // SPDX-License-Identifier: GPL-2.0-only
+
 
 #define NS_LOG_APPEND_CONTEXT                                                                      \
     do                                                                                             \
@@ -405,6 +413,7 @@ NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters par
         it = m_ulBsrReceived.insert(std::make_pair(params.lcid, params)).first;
     }
 
+    // rnti 별 packet creation time stamp 큐에 추가
     uint16_t rnti = params.rnti;
     ue_mac_packet_Ctime_Queue_Map[rnti].push(Simulator::Now().GetMicroSeconds());
     NS_LOG_INFO("Added packet creation time for RNTI " << rnti << ": " << Simulator::Now().GetMicroSeconds());
@@ -416,6 +425,10 @@ NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters par
     }
 }
 
+/**
+ * 갱신한 UE 별 패킷 Queue map을 BSR과 함께 gNB로 송신
+ * NrBsrMessage에 붙여서 보내기
+ */
 void
 NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
 {
@@ -485,6 +498,9 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     Ptr<NrBsrMessage> msg = Create<NrBsrMessage>();
     msg->SetSourceBwp(GetBwpId());
     msg->SetBsr(bsr);
+    msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map[m_rnti]); // DoReportBufferStatus 메서드에서 갱신한 Queue를 Message에 삽입
+    m_phySapProvider->SendControlMessage(msg);  // gNB로 보내기
+    NS_LOG_INFO("Sent NrBsrMessage with queue size " << ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti);
 
     m_macTxedCtrlMsgsTrace(m_currentSlot, GetCellId(), bsr.m_rnti, GetBwpId(), msg);
 
