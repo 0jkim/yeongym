@@ -382,6 +382,10 @@ NrUeMac::DoTransmitPdu(NrMacSapProvider::TransmitPduParameters params)
     m_phySapProvider->SendMacPdu(params.pdu, m_ulDciSfnsf, m_ulDci->m_symStart, m_ulDci->m_rnti);
 }
 
+/**
+ * 버퍼에 새로운 패킷이 저장되는 시점
+ * 큐 추가
+ */
 void
 NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters params)
 {
@@ -401,6 +405,10 @@ NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters par
         it = m_ulBsrReceived.insert(std::make_pair(params.lcid, params)).first;
     }
 
+    uint16_t rnti = params.rnti;
+    ue_mac_packet_Ctime_Queue_Map[rnti].push(Simulator::Now().GetMicroSeconds());
+    NS_LOG_INFO("Added packet creation time for RNTI " << rnti << ": " << Simulator::Now().GetMicroSeconds());
+    
     if (m_srState == INACTIVE)
     {
         NS_LOG_INFO("INACTIVE -> TO_SEND, bufSize " << GetTotalBufSize());
@@ -471,6 +479,9 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     bsr.m_macCeValue.m_bufferStatus.push_back(NrMacShortBsrCe::FromBytesToLevel(queue.at(3)));
 
     // create the message. It is used only for tracing, but we don't send it...
+    /**
+     * 기존에는 사용되지 않는 NrBsrMessage 클래스 내부에 UE 별 패킷 큐를 구성해서 사용할 것임.
+     */
     Ptr<NrBsrMessage> msg = Create<NrBsrMessage>();
     msg->SetSourceBwp(GetBwpId());
     msg->SetBsr(bsr);
@@ -499,6 +510,7 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
                   "We used more data than the DCI allowed us.");
 
     m_phySapProvider->SendMacPdu(p, dataSfn, symStart, m_ulDci->m_rnti);
+    
 }
 
 void
