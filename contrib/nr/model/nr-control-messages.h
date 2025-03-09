@@ -274,7 +274,7 @@ class NrDlCqiMessage : public NrControlMessage
  * The uplink BsrNrControlMessage defines the specific
  * extension of the CE element for reporting the buffer status report
  * 
- * NrBsrMessage에 패킷 생성시간 queue 구성
+ * NrBsrMessage에 패킷 생성시간 queue 및 관련 메서드(set,get) 구성
  */
 class NrBsrMessage : public NrControlMessage
 {
@@ -300,6 +300,18 @@ class NrBsrMessage : public NrControlMessage
      */
     MacCeElement GetBsr();
 
+    /**
+     * PacketCreationTimeQueue Set,Get Method
+     */
+    void SetPacketCreationTimes(const std::queue<uint64_t>& times)
+    {
+      m_packet_creation_time_queue=times;
+    }
+
+    std::queue<uint64_t> GetPacketCreationTimes() const
+    {
+      return m_packet_creation_time_queue;  
+    }
   private:
     MacCeElement m_bsr; //!< The BSR
     std::queue<uint64_t> m_packet_creation_time_queue;  // 패킷 생성 시간 큐
