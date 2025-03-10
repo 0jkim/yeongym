@@ -997,6 +997,12 @@ NrGnbMac::DoUlCqiReport(NrMacSchedSapProvider::SchedUlCqiInfoReqParameters ulcqi
     m_ulCqiReceived.push_back(ulcqi);
 }
 
+/**
+ * gNB에서 UE의 Buffer Status 받는 곳
+ * TODO : NrControlMessage::BSR 구현해서 태그 떼고 큐 가져와서 대입하기
+ * 궁금한 점 : tracing이랑 이렇게 메시지 헤드에 큐를 보내는 것이 얼마나 차이가 큰지?
+ * Notion에 정리하기기
+ */
 void
 NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
 {
