@@ -125,6 +125,51 @@ class NrUeMac : public Object
     // <UE, 데이터 패킷 생성 시간 큐> map
     std::unordered_map<uint16_t, std::queue<uint64_t>> ue_mac_packet_Ctime_Queue_Map;
 
+    // PacketCreationTimeTag 정의
+    struct PacketCreationTimeTag : public Tag
+    {
+        uint16_t rnti;
+        std::vector<uint64_t> creationTimes;
+        void Serialize(TagBuffer i) const override 
+        { 
+            i.WriteU16(rnti);
+            i.WriteU32(creationTimes.size()); 
+            for (auto t : creationTimes) 
+                i.WriteU64(t); 
+        }
+        void Deserialize(TagBuffer i) override 
+        { 
+            rnti = i.ReadU16();
+            uint32_t size = i.ReadU32();
+            creationTimes.resize(size); 
+            for (uint32_t j = 0; j < size; ++j) 
+                creationTimes[j] = i.ReadU64(); 
+        }
+        uint32_t GetSerializedSize() const override 
+        { 
+            return 2 + 4 + 8 * creationTimes.size(); 
+        }
+        static TypeId GetTypeId() 
+        { 
+            static TypeId tid = TypeId("ns3::AoITag").SetParent<Tag>(); 
+            return tid; 
+        }
+        TypeId GetInstanceTypeId() const override 
+        { 
+            return GetTypeId(); 
+        }
+        void Print(std::ostream& os) const override
+        {
+            os << "RNTI=" << rnti << ", CreationTimes=[";
+            for (size_t i = 0; i < creationTimes.size(); ++i)
+            {
+                os << creationTimes[i];
+                if (i < creationTimes.size() - 1) os << ",";
+            }
+            os << "]";
+        }
+    };
+
     /**
      * \brief Get the Type id
      * \return the type id
@@ -240,50 +285,6 @@ class NrUeMac : public Object
     uint16_t GetCellId() const;
 
   private:
-    // PacketCreationTimeTag 정의
-    struct PacketCreationTimeTag : public Tag
-    {
-        uint16_t rnti;
-        std::vector<uint64_t> creationTimes;
-        void Serialize(TagBuffer i) const override 
-        { 
-            i.WriteU16(rnti);
-            i.WriteU32(creationTimes.size()); 
-            for (auto t : creationTimes) 
-                i.WriteU64(t); 
-        }
-        void Deserialize(TagBuffer i) override 
-        { 
-            rnti = i.ReadU16();
-            uint32_t size = i.ReadU32();
-            creationTimes.resize(size); 
-            for (uint32_t j = 0; j < size; ++j) 
-                creationTimes[j] = i.ReadU64(); 
-        }
-        uint32_t GetSerializedSize() const override 
-        { 
-            return 2 + 4 + 8 * creationTimes.size(); 
-        }
-        static TypeId GetTypeId() 
-        { 
-            static TypeId tid = TypeId("ns3::AoITag").SetParent<Tag>(); 
-            return tid; 
-        }
-        TypeId GetInstanceTypeId() const override 
-        { 
-            return GetTypeId(); 
-        }
-        void Print(std::ostream& os) const override
-        {
-            os << "RNTI=" << rnti << ", CreationTimes=[";
-            for (size_t i = 0; i < creationTimes.size(); ++i)
-            {
-                os << creationTimes[i];
-                if (i < creationTimes.size() - 1) os << ",";
-            }
-            os << "]";
-        }
-    };
     /**
      * \brief Received a RA response
      * \param raResponse the response
