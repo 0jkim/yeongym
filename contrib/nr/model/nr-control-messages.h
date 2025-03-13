@@ -307,11 +307,11 @@ class NrBsrMessage : public NrControlMessage
     {
       m_packet_creation_time_queue=times;
     }
-
     std::queue<uint64_t> GetPacketCreationTimes() const
     {
       return m_packet_creation_time_queue;  
     }
+    
   private:
     MacCeElement m_bsr; //!< The BSR
     std::queue<uint64_t> m_packet_creation_time_queue;  // 패킷 생성 시간 큐
