@@ -81,12 +81,14 @@ class NrMacSchedSapProvider
 
     /**
      * \brief UL HARQ information to be used when scheduling UL data.
+     * Rnti 별 패킷 생성 시간 큐 map 변수 추가
      */
     struct SchedUlTriggerReqParameters
     {
         SfnSf m_snfSf;                                   //!< SfnSf
         std::vector<struct UlHarqInfo> m_ulHarqInfoList; //!< UL HARQ info list
         LteNrTddSlotType m_slotType{F};                  //!< Indicate the type of slot requested
+        std::unordered_map<uint16_t, std::queue<uint64_t>> m_packetCreationTimes;   // UE 별 패킷 생성 시간 큐
     };
 
     /**
