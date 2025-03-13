@@ -21,6 +21,7 @@
 #include "nr-mac-short-bsr-ce.h"
 #include "nr-phy-mac-common.h"
 #include "nr-radio-bearer-tag.h"
+#include "nr-ue-mac.h"
 
 #include <ns3/log.h>
 #include <ns3/spectrum-model.h>
@@ -722,6 +723,10 @@ NrGnbMac::ProcessRaPreambles(const SfnSf& sfnSf)
     m_macSchedSapProvider->SchedDlRachInfoReq(rachInfoReqParams);
 }
 
+/**
+ * Uplink Scheduler Start
+ * NrMacSchedSapProvider::SchedUlTriggerReqParameters ulParams에다가 페킷 생성 시간 큐를 보내야함
+ */
 void
 NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
 {
@@ -881,6 +886,10 @@ NrGnbMac::DoReportSrToScheduler(uint16_t rnti)
     m_srCallback(GetBwpId(), rnti);
 }
 
+/**
+ * ue-mac에서 SHORT_BSR 패킷에서 보낸 패킷 생성 시간 큐 Tag를
+ * DoReceivePhyPdu 메서드에서 떼고 gnb_mac_Ctime_queue_map에 저장
+ */
 void
 NrGnbMac::DoReceivePhyPdu(Ptr<Packet> p)
 {
@@ -915,12 +924,24 @@ NrGnbMac::DoReceivePhyPdu(Ptr<Packet> p)
         bsr.m_macCeValue.m_bufferStatus[2] = bsrHeader.m_bufferSizeLevel_2;
         bsr.m_macCeValue.m_bufferStatus[3] = bsrHeader.m_bufferSizeLevel_3;
 
+        // PacketCreationTime parsing
+        NrUeMac::PacketCreationTimeTag tag;
+        if (p->PeekPacketTag(tag))
+        {
+            p->RemovePacketTag(tag);
+            gnb_mac_Ctime_queue_map[rnti] = std::queue<uint64_t>();
+            for (auto time : tag.creationTimes)
+            {
+                gnb_mac_Ctime_queue_map[rnti].push(time);
+            }
+            NS_LOG_INFO("Received packet creation times for RNTI " << rnti << " with size " << tag.creationTimes.size());
+        }
+
         ReceiveBsrMessage(bsr); // Here it will be converted again, but our job is done.
         return;
     }
 
     // Ok, we know it is data, so let's extract and pass to RLC.
-
     NrMacHeaderVs macHeader;
     p->RemoveHeader(macHeader);
 
@@ -1001,7 +1022,6 @@ NrGnbMac::DoUlCqiReport(NrMacSchedSapProvider::SchedUlCqiInfoReqParameters ulcqi
  * gNB에서 UE의 Buffer Status 받는 곳
  * TODO : NrControlMessage::BSR 구현해서 태그 떼고 큐 가져와서 대입하기
  * 궁금한 점 : tracing이랑 이렇게 메시지 헤드에 큐를 보내는 것이 얼마나 차이가 큰지?
- * Notion에 정리하기기
  */
 void
 NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
@@ -1010,6 +1030,11 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
 
     switch (msg->GetMessageType())
     {
+    case (NrControlMessage::BSR) :
+    {
+        // NrControlMessage에 추가한 BSR 메시지를 gnb-mac에서 수신하는 것 추가
+        
+    }
     case (NrControlMessage::SR): {
         // Report it to the CCM. Then he will call the right MAC
         Ptr<NrSRMessage> sr = DynamicCast<NrSRMessage>(msg);
