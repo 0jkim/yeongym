@@ -120,63 +120,62 @@ int main(int argc, char* argv[])
      * Deployment UE, gNB
      * Indoor 80%, Outdoor 20%
      */
-    GridScenarioHelper gridScenario;
-    gridScenario.SetRows(1);
-    gridScenario.SetColumns(gNBNum);
-    gridScenario.SetHorizontalBsDistance(isd);
-    gridScenario.SetBsHeight(10.0);
-    gridScenario.SetUtHeight(1.5);
-    gridScenario.SetSectorization(GridScenarioHelper::SINGLE);
-    gridScenario.SetBsNumber(gNBNum);
-    gridScenario.SetUtNumber(ueNum);
-    gridScenario.CreateScenario();
-
-    MobilityHelper mobility;
-    mobility.SetPositionAllocator("ns3::GridPositionAllocator",
-                                  "MinX",
-                                  DoubleValue(-isd / 2),
-                                  "MinY",
-                                  DoubleValue(-isd / 2),
-                                  "GridWidth",
-                                  UintegerValue(1),
-                                  "LayoutType",
-                                  StringValue("RowFirst"));
-
-    NodeContainer ueNodes = gridScenario.GetUserTerminals();
-    mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
-    mobility.Install(ueNodes);
-
-    // 디버깅: 설치 확인
-    for (uint32_t i = 0; i < ueNodes.GetN(); i++)
+    // Mobility Helper
+    NodeContainer gnbNodes;
+    gnbNodes.Create(gNBNum);
+    NodeContainer ueNodes;
+    ueNodes.Create(ueNum * gNBNum);
+    
+    // gNB mobility
+    MobilityHelper gnbMobility;
+    gnbMobility.SetPositionAllocator("ns3::GridPositionAllocator",
+                                     "MinX", DoubleValue(0),
+                                     "MinY", DoubleValue(0),
+                                     "GridWidth", UintegerValue(1),
+                                     "LayoutType", StringValue("RowFirst"));
+    gnbMobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    gnbMobility.Install(gnbNodes);
+    for (uint32_t i = 0; i < gNBNum; i++)
     {
-        Ptr<MobilityModel> mob = ueNodes.Get(i)->GetObject<MobilityModel>();
+        Ptr<MobilityModel> mob = gnbNodes.Get(i)->GetObject<MobilityModel>();
         if (!mob)
         {
-            NS_FATAL_ERROR("No MobilityModel installed for UE " << i);
+            NS_FATAL_ERROR("No MobilityModel installed for gNB " << i);
         }
-        NS_LOG_INFO("UE " << i << " has mobility model: " << mob->GetInstanceTypeId().GetName());
+        mob->SetPosition(Vector(i * 5.0, 0, 10.0));
+        NS_LOG_INFO("✅ gNB " << i << " mobility model initialized.");
     }
 
-    std::vector<bool> isMobile(ueNum, false);
-    std::vector<uint32_t> indices(ueNum);
-    for (uint32_t i=0;i<ueNum;i++)
+    // UE mobility
+    MobilityHelper ueMobility;
+    ueMobility.SetPositionAllocator("ns3::GridPositionAllocator",
+                                    "MinX", DoubleValue(-2.5),
+                                    "MinY", DoubleValue(-2.5),
+                                    "GridWidth", UintegerValue(10),
+                                    "LayoutType", StringValue("RowFirst"));
+    ueMobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
+    ueMobility.Install(ueNodes);
+    
+    // UE speed setting
+    std::vector<bool> isMobile(ueNum * gNBNum, false);
+    std::vector<uint32_t> indices(ueNum * gNBNum);
+    for (uint32_t i = 0; i <ueNum * gNBNum; i++)
     {
-        indices[i]=i;
+        indices[i] = i;
     }
     std::shuffle(indices.begin(), indices.end(), std::mt19937(std::random_device()()));
-
-    for (uint32_t i = 0; i < ueNum; i++)
+    for (uint32_t i = 0; i < ueNum * gNBNum; i++)
     {
         Ptr<ConstantVelocityMobilityModel> mob = ueNodes.Get(indices[i])->GetObject<ConstantVelocityMobilityModel>();
         if (!mob)
         {
-            NS_FATAL_ERROR("ConstantVelocityMobilityModel not found for UE " << indices[i]);
+            NS_FATAL_ERROR("No MobilityModel installed for UE " << i);
         }
-        if (i < ueNum * 0.2)
+        if (i < (ueNum * gNBNum * 0.2))
         {
-            mob->SetVelocity(Vector(27.28, 0, 0));
-            isMobile[indices[i]]=true;
-            NS_LOG_INFO("UE " << i << " set to 100km/h (car)");
+            mob->SetVelocity(Vector(27.78, 0, 0));
+            isMobile[indices[i]] = true;
+            NS_LOG_INFO("UE " << indices[i] << " set to 100km/h (Outdoor)");
         }
         else
         {
@@ -184,73 +183,8 @@ int main(int argc, char* argv[])
             NS_LOG_INFO("UE " << indices[i] << " set to 0km/h (Indoor)");
         }
     }
-    
-    // // Only Mobility Helper start
-    // NodeContainer gnbNodes;
-    // gnbNodes.Create(gNBNum);
-    // NodeContainer ueNodes;
-    // ueNodes.Create(ueNum * gNBNum);
-    
-    // // gNB 모빌리티
-    // MobilityHelper gnbMobility;
-    // gnbMobility.SetPositionAllocator("ns3::GridPositionAllocator",
-    //                                  "MinX", DoubleValue(0),
-    //                                  "MinY", DoubleValue(0),
-    //                                  "GridWidth", UintegerValue(1),
-    //                                  "LayoutType", StringValue("RowFirst"));
-    // gnbMobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    // gnbMobility.Install(gnbNodes);
 
-    // for (uint32_t i = 0; i < gNBNum; i++)
-    // {
-    //     Ptr<MobilityModel> mob = gnbNodes.Get(i)->GetObject<MobilityModel>();
-    //     if (!mob)
-    //     {
-    //         NS_FATAL_ERROR("No MobilityModel installed for gNB " << i);
-    //     }
-    //     mob->SetPosition(Vector(i * 5.0, 0, 10.0));
-    //     NS_LOG_INFO("✅ gNB " << i << " mobility model initialized.");
-    // }
-
-    // // UE 모빌리티
-    // MobilityHelper ueMobility;
-    // ueMobility.SetPositionAllocator("ns3::GridPositionAllocator",
-    //                                 "MinX", DoubleValue(-2.5),
-    //                                 "MinY", DoubleValue(-2.5),
-    //                                 "GridWidth", UintegerValue(10),
-    //                                 "LayoutType", StringValue("RowFirst"));
-    // ueMobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
-    // ueMobility.Install(ueNodes);
-    
-    // // UE 속도 설정
-    // std::vector<bool> isMobile(ueNum * gNBNum, false);
-    // std::vector<uint32_t> indices(ueNum * gNBNum);
-    // for (uint32_t i = 0; i <ueNum * gNBNum; i++)
-    // {
-    //     indices[i] = i;
-    // }
-    // std::shuffle(indices.begin(), indices.end(), std::mt19937(std::random_device()()));
-    // for (uint32_t i = 0; i < ueNum * gNBNum; i++)
-    // {
-    //     Ptr<ConstantVelocityMobilityModel> mob = ueNodes.Get(indices[i])->GetObject<ConstantVelocityMobilityModel>();
-    //     if (!mob)
-    //     {
-    //         NS_FATAL_ERROR("No MobilityModel installed for UE " << i);
-    //     }
-    //     if (i < (ueNum * gNBNum * 0.2))
-    //     {
-    //         mob->SetVelocity(Vector(27.78, 0, 0));
-    //         isMobile[indices[i]] = true;
-    //         NS_LOG_INFO("UE " << indices[i] << " set to 100km/h (Outdoor)");
-    //     }
-    //     else
-    //     {
-    //         mob->SetVelocity(Vector(0, 0, 0));
-    //         NS_LOG_INFO("UE " << indices[i] << " set to 0km/h (Indoor)");
-    //     }
-    // }
-
-    // Configuration NR
+    // Configuration NR (P2P or IdleBeamforming => here. P2P)
     Ptr<NrHelper> nrHelper = CreateObject<NrHelper>();
     Ptr<NrPointToPointEpcHelper> epcHelper = CreateObject<NrPointToPointEpcHelper>();
     nrHelper->SetEpcHelper(epcHelper);
@@ -279,11 +213,15 @@ int main(int argc, char* argv[])
     }
     // else if (select_sch == 3)
     // {
-
+            /**
+             * AoI greedy Scheduler
+             */
     // }
     // else if (select_sch == 4)
     // {
-
+            /**
+             * RL based Scheduler
+             */
     // }
     
     // Disable SRS (for data drop)
@@ -331,21 +269,7 @@ int main(int argc, char* argv[])
     OperationBandInfo band1 = ccBwpCreator.CreateOperationBandContiguousCc(bandConf1);
     nrHelper->InitializeOperationBand(&band1, bandMask);
     allBwps = CcBwpCreator::GetAllBwps({band1});    
-    
-    // 디버깅 시작
-    NS_LOG_INFO("Number of BWPs: " << allBwps.size());
-    for (const auto& bwpRef : allBwps)
-    {
-        const BandwidthPartInfo* bwp = bwpRef.get().get(); // std::reference_wrapper에서 포인터 추출
-        NS_LOG_INFO("BWP Bandwidth: " << bwp->m_channelBandwidth << " Hz");
-    }
-    // 디버깅 끝
 
-    // Install NetDevice
-    NetDeviceContainer enbNetDev =
-        nrHelper->InstallGnbDevice(gridScenario.GetBaseStations(), allBwps);
-    NetDeviceContainer ueNetDev = nrHelper->InstallUeDevice(gridScenario.GetUserTerminals(), allBwps);
-    
     // Antennas for all the UEs
     nrHelper->SetUeAntennaAttribute ("NumRows", UintegerValue (2));
     nrHelper->SetUeAntennaAttribute ("NumColumns", UintegerValue (4));
@@ -357,72 +281,33 @@ int main(int argc, char* argv[])
     nrHelper->SetGnbAntennaAttribute ("NumColumns", UintegerValue (4));
     nrHelper->SetGnbAntennaAttribute ("AntennaElement",
                                         PointerValue (CreateObject<IsotropicAntennaModel> ()));
-    // NetDevice 설치
-    // NetDeviceContainer enbNetDev = nrHelper->InstallGnbDevice(gnbNodes, allBwps);
-    // NetDeviceContainer ueNetDev = nrHelper->InstallUeDevice(ueNodes, allBwps);
-    nrHelper->GetGnbPhy (enbNetDev.Get (0), 0)->SetAttribute ("Numerology", UintegerValue (0));
-
-    Ptr<NrGnbNetDevice> gnbDev = DynamicCast<NrGnbNetDevice>(enbNetDev.Get(0));
-    if (gnbDev)
-    {
-        Ptr<NrGnbPhy> phy = gnbDev->GetPhy(0);
-        if (phy)
-        {
-            NS_LOG_INFO("✅ PHY Found!");
-            phy->Initialize(); // 이때 ConfigureMac()이 호출되어야 함
-        }
-        else
-        {
-            NS_LOG_ERROR("❌ Failed to get PHY from gNB device");
-        }
-        
-        Ptr<NrGnbMac> mac = gnbDev->GetMac(0);
-        if (mac)
-        {
-            NS_LOG_INFO("✅ MAC Found!");
-        }
-        else
-        {
-            NS_LOG_ERROR("❌ Failed to get MAC from gNB device");
-        }
-    }
-    else
-    {
-        NS_LOG_ERROR("Failed to cast NetDevice to NrGnbNetDevice");
-    }
+    // Install NetDevice
+    NetDeviceContainer enbNetDev = nrHelper->InstallGnbDevice(gnbNodes, allBwps);
+    NetDeviceContainer ueNetDev = nrHelper->InstallUeDevice(ueNodes, allBwps);
+    
     // Set the attribute of the netdevice (enbNetDev.Get (0)) and bandwidth part (0)
     nrHelper->GetGnbPhy (enbNetDev.Get (0), 0)
         ->SetAttribute ("Numerology", UintegerValue (numerologyBwp1));
-
     for (auto it = enbNetDev.Begin (); it != enbNetDev.End (); ++it)
-        {
-        DynamicCast<NrGnbNetDevice> (*it)->UpdateConfig ();
-        }
+    {
+    DynamicCast<NrGnbNetDevice> (*it)->UpdateConfig ();
+    }
 
     for (auto it = ueNetDev.Begin (); it != ueNetDev.End (); ++it)
-        {
-        DynamicCast<NrUeNetDevice> (*it)->UpdateConfig ();
-        }
+    {
+    DynamicCast<NrUeNetDevice> (*it)->UpdateConfig ();
+    }
+
     // Set IP
     InternetStackHelper internet;
     internet.Install(ueNodes);
     Ipv4InterfaceContainer ueIpIface = epcHelper->AssignUeIpv4Address(ueNetDev);
-    
-    if (ueNetDev.GetN() > 0)
-    {
-        NS_LOG_INFO("✅ UE Devices "<<ueNetDev.GetN()<< " successfully created.");
-    }
-    else
-    {
-        NS_LOG_ERROR("❌ UE Devices not created!");
-    }
 
     // Attach UE and gNB
     nrHelper->AttachToClosestGnb(ueNetDev, enbNetDev);
 
-    // 초기 지연 테스트 시작
+    // Initial Delay
     Time initialSetupTime = MilliSeconds(100);
-    // 테스트 끝
 
     // Set Uplink Traffic
     std::vector<Ptr<MyModel>> v_modelUl(ueNum);
