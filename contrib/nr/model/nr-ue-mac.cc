@@ -418,6 +418,9 @@ NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters par
     uint16_t rnti = params.rnti;
     ue_mac_packet_Ctime_Queue_Map[rnti].push(Simulator::Now().GetMicroSeconds());
     NS_LOG_INFO("Added packet creation time for RNTI " << rnti << ": " << Simulator::Now().GetMicroSeconds());
+
+    // [Output 1] : 패킷 큐 확인용 메시지
+    std::cout<<"현재 rnti "<<rnti<<"의 가장 오래된 패킷 생성시간 큐 상태 : "<<ue_mac_packet_Ctime_Queue_Map[rnti].front()<<std::endl;
     
     if (m_srState == INACTIVE)
     {
@@ -542,6 +545,8 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     NS_ASSERT_MSG(m_ulDciTotalUsed <= m_ulDci->m_tbSize,
                   "We used more data than the DCI allowed us.");
 
+    // [Output 2] : Send packetCreationTimeTag
+    std::cout<<"SHORT BSR과 함께 패킷 생성 시간 태그에 붙여서 전송"<<std::endl;
     m_phySapProvider->SendMacPdu(p, dataSfn, symStart, m_ulDci->m_rnti);
     
 }
