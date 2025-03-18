@@ -26,6 +26,7 @@
 #include "ns3/nr-helper.h"
 #include "ns3/nr-module.h"
 #include "ns3/nr-point-to-point-epc-helper.h"
+#include "ns3/nr-ue-rrc.h"
 #include <random>
 
 using namespace ns3;
@@ -69,15 +70,14 @@ class MyModel : public Application
                 ScheduleNextPacket();
             }
         }
-    
-    private:
+
         void ScheduleNextPacket()
         {
-            std::uniform_int_distribution<uint32_t> periodDist(10, 5000);
+            std::uniform_int_distribution<uint32_t> periodDist(500, 5000);
             Time tNext = MilliSeconds(periodDist(m_rng));
             Simulator::Schedule(tNext, &MyModel::SendPacketUl, this);
         }
-
+    private:
         Ptr<NetDevice> m_device;
         Address m_address;
         uint32_t m_nPackets, m_packetSent;
@@ -87,6 +87,60 @@ class MyModel : public Application
         std::mt19937 m_rng;
 };
 
+// EnableTracesIfConnected 함수를 main 외부로 이동
+void EnableTracesIfConnected(Ptr<NrHelper> nrHelper, NetDeviceContainer ueNetDev)
+{
+    bool allConnected = true;
+    for (uint32_t i = 0; i < ueNetDev.GetN(); ++i)
+    {
+        Ptr<NrUeNetDevice> ueDev = DynamicCast<NrUeNetDevice>(ueNetDev.Get(i));
+        if (!ueDev || ueDev->GetRrc()->GetState() != NrUeRrc::CONNECTED_NORMALLY)
+        {
+            allConnected = false;
+            break;
+        }
+    }
+    if (allConnected)
+    {
+        nrHelper->EnableTraces();
+        NS_LOG_INFO("All UEs connected, traces enabled.");
+    }
+    else
+    {
+        Simulator::Schedule(MilliSeconds(50), &EnableTracesIfConnected, nrHelper, ueNetDev);
+    }
+}
+
+// RRC 상태 모니터링 함수 정의
+void MonitorUeConnection(Ptr<NrHelper> nrHelper, NetDeviceContainer ueNetDev, Time initialSetupTime, std::vector<Ptr<MyModel>>& v_modelUl)
+{
+    bool allConnected = true;
+    for (uint32_t i = 0; i < ueNetDev.GetN(); ++i)
+    {
+        Ptr<NrUeNetDevice> ueDev = DynamicCast<NrUeNetDevice>(ueNetDev.Get(i));
+        if (!ueDev || ueDev->GetRrc()->GetState() != NrUeRrc::CONNECTED_NORMALLY)
+        {
+            allConnected = false;
+            break;
+        }
+    }
+    if (allConnected)
+    {
+        NS_LOG_INFO("All UEs connected, starting simulation.");
+        nrHelper->EnableTraces(); // 트레이싱 활성화
+        // 패킷 전송 시작
+        for (uint32_t i = 0; i < v_modelUl.size(); i++)
+        {
+            Simulator::ScheduleNow(&MyModel::SendPacketUl, v_modelUl[i]);
+        }
+    }
+    else
+    {
+        // 50ms 후 다시 상태 확인
+        Simulator::Schedule(MilliSeconds(50), &MonitorUeConnection, nrHelper, ueNetDev, initialSetupTime, v_modelUl);
+    }
+}
+
 int main(int argc, char* argv[])
 {
 
@@ -94,7 +148,7 @@ int main(int argc, char* argv[])
     double bandwidthBand1 = 10e6;          // 5MHz 주파수 대역 (699.5 - 700.5MHz)
     uint16_t numerologyBwp1 = 0;          // mMTC numerology 0
     uint16_t gNBNum = 1;                  // 1 gNB
-    uint16_t ueNum = 100;                 // 100 UE
+    uint16_t ueNum = 10;                 // 100 UE
     double isd = 1732.0;                  // ISD 1732m
 
     bool enableUl = true;     // Uplink on
@@ -274,29 +328,34 @@ int main(int argc, char* argv[])
     nrHelper->SetUeAntennaAttribute ("NumRows", UintegerValue (2));
     nrHelper->SetUeAntennaAttribute ("NumColumns", UintegerValue (4));
     nrHelper->SetUeAntennaAttribute ("AntennaElement",
-                                    PointerValue (CreateObject<IsotropicAntennaModel> ()));
+                                    PointerValue (CreateObject<ThreeGppAntennaModel> ()));
 
     // Antennas for all the gNbs
     nrHelper->SetGnbAntennaAttribute ("NumRows", UintegerValue (4));
     nrHelper->SetGnbAntennaAttribute ("NumColumns", UintegerValue (4));
     nrHelper->SetGnbAntennaAttribute ("AntennaElement",
-                                        PointerValue (CreateObject<IsotropicAntennaModel> ()));
+                                        PointerValue (CreateObject<ThreeGppAntennaModel> ()));
     // Install NetDevice
     NetDeviceContainer enbNetDev = nrHelper->InstallGnbDevice(gnbNodes, allBwps);
     NetDeviceContainer ueNetDev = nrHelper->InstallUeDevice(ueNodes, allBwps);
     
     // Set the attribute of the netdevice (enbNetDev.Get (0)) and bandwidth part (0)
-    nrHelper->GetGnbPhy (enbNetDev.Get (0), 0)
-        ->SetAttribute ("Numerology", UintegerValue (numerologyBwp1));
+    nrHelper->GetGnbPhy (enbNetDev.Get (0), 0)->SetAttribute ("Numerology", UintegerValue (numerologyBwp1));
     for (auto it = enbNetDev.Begin (); it != enbNetDev.End (); ++it)
     {
-    DynamicCast<NrGnbNetDevice> (*it)->UpdateConfig ();
+        DynamicCast<NrGnbNetDevice> (*it)->UpdateConfig ();
     }
-
     for (auto it = ueNetDev.Begin (); it != ueNetDev.End (); ++it)
     {
-    DynamicCast<NrUeNetDevice> (*it)->UpdateConfig ();
+        DynamicCast<NrUeNetDevice> (*it)->UpdateConfig ();
     }
+
+    // RandomStream setting
+    int64_t randomStream = 1;
+    randomStream += ueMobility.AssignStreams(ueNodes, randomStream);
+    randomStream += gnbMobility.AssignStreams(gnbNodes, randomStream);
+    randomStream += nrHelper->AssignStreams(enbNetDev, randomStream);
+    randomStream += nrHelper->AssignStreams(ueNetDev, randomStream);
 
     // Set IP
     InternetStackHelper internet;
@@ -305,9 +364,12 @@ int main(int argc, char* argv[])
 
     // Attach UE and gNB
     nrHelper->AttachToClosestGnb(ueNetDev, enbNetDev);
+    
+    // RRC Debugger
+    Simulator::Schedule(MilliSeconds(150), &EnableTracesIfConnected, nrHelper, ueNetDev);
 
     // Initial Delay
-    Time initialSetupTime = MilliSeconds(100);
+    Time initialSetupTime = Seconds(3);
 
     // Set Uplink Traffic
     std::vector<Ptr<MyModel>> v_modelUl(ueNum);
@@ -319,7 +381,7 @@ int main(int argc, char* argv[])
         Simulator::Schedule(initialSetupTime + MicroSeconds(100 * i), &MyModel::SendPacketUl, v_modelUl[i]);
     }
 
-    nrHelper->EnableTraces();
+    // Simulator::Schedule(initialSetupTime, &NrHelper::EnableTraces, nrHelper);
     Simulator::Stop(Seconds(simTime));
     Simulator::Run();
     Simulator::Destroy();
