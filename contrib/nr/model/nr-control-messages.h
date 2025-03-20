@@ -102,6 +102,8 @@ class NrControlMessage : public SimpleRefCount<NrControlMessage>
  *
  * Message that represent a scheduling request, with the RNTI from
  * which this message is coming.
+ * 
+ * NrSrMessage에 큐 같이 보내기
  */
 class NrSRMessage : public NrControlMessage
 {
@@ -125,10 +127,19 @@ class NrSRMessage : public NrControlMessage
      * \brief Get the RNTI of this message
      * \return RNTI
      */
-    uint16_t GetRNTI() const;
 
+    uint16_t GetRNTI() const;
+    void SetPacketCreationTimes(const std::queue<uint64_t>& times)
+    {
+      m_packet_creation_time_queue=times;
+    }
+    std::queue<uint64_t> GetPacketCreationTimes() const
+    {
+      return m_packet_creation_time_queue;  
+    }
   private:
     uint16_t m_rnti{0}; //!< RNTI
+    std::queue<uint64_t> m_packet_creation_time_queue;  // 패킷 생성 시간 큐
 };
 
 /**
@@ -303,18 +314,17 @@ class NrBsrMessage : public NrControlMessage
     /**
      * PacketCreationTimeQueue Set,Get Method
      */
-    void SetPacketCreationTimes(const std::queue<uint64_t>& times)
+    void SetRnti(uint16_t rnti)
     {
-      m_packet_creation_time_queue=times;
+      bsr_rnti = rnti;
     }
-    std::queue<uint64_t> GetPacketCreationTimes() const
+    uint16_t GetRnti()
     {
-      return m_packet_creation_time_queue;  
+      return bsr_rnti;
     }
-    
   private:
     MacCeElement m_bsr; //!< The BSR
-    std::queue<uint64_t> m_packet_creation_time_queue;  // 패킷 생성 시간 큐
+    uint16_t bsr_rnti;  // BsrMessage rnti
 };
 
 // ---------------------------------------------------------------------------

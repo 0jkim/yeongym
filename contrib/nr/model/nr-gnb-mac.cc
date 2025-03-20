@@ -784,8 +784,9 @@ NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
         }
     }
 
+    // SchedUlTriggerReqParameters에 패킷 생성 시간 큐 저장 변수 구현 및 추가
     NrMacSchedSapProvider::SchedUlTriggerReqParameters ulParams;
-
+    ulParams.sched_packetCreationTimes = gnb_mac_Ctime_queue_map;   // gNB 큐 -> Scheduler 큐
     ulParams.m_snfSf = sfnSf;
     ulParams.m_slotType = type;
 
@@ -889,6 +890,7 @@ NrGnbMac::DoReportSrToScheduler(uint16_t rnti)
 /**
  * ue-mac에서 SHORT_BSR 패킷에서 보낸 패킷 생성 시간 큐 Tag를
  * DoReceivePhyPdu 메서드에서 떼고 gnb_mac_Ctime_queue_map에 저장
+ * 태그는 잠깐 나가있어.
  */
 void
 NrGnbMac::DoReceivePhyPdu(Ptr<Packet> p)
@@ -924,18 +926,21 @@ NrGnbMac::DoReceivePhyPdu(Ptr<Packet> p)
         bsr.m_macCeValue.m_bufferStatus[2] = bsrHeader.m_bufferSizeLevel_2;
         bsr.m_macCeValue.m_bufferStatus[3] = bsrHeader.m_bufferSizeLevel_3;
 
-        // PacketCreationTime parsing
-        NrUeMac::PacketCreationTimeTag tag;
-        if (p->PeekPacketTag(tag))
-        {
-            p->RemovePacketTag(tag);
-            gnb_mac_Ctime_queue_map[rnti] = std::queue<uint64_t>();
-            for (auto time : tag.creationTimes)
-            {
-                gnb_mac_Ctime_queue_map[rnti].push(time);
-            }
-            NS_LOG_INFO("Received packet creation times for RNTI " << rnti << " with size " << tag.creationTimes.size());
-        }
+        // PacketCreationTime parsing해서 태그 값을 gnb-mac 멤버 변수 queue에 저장
+        // 태그는 잠깐 나가있어.
+        // NrUeMac::PacketCreationTimeTag tag;
+        // if (p->PeekPacketTag(tag))
+        // {
+        //     p->RemovePacketTag(tag);
+        //     gnb_mac_Ctime_queue_map[rnti] = std::queue<uint64_t>();
+        //     for (auto time : tag.creationTimes)
+        //     {
+        //         gnb_mac_Ctime_queue_map[rnti].push(time);
+        //     }
+        //     NS_LOG_INFO("Packet received at DoReceivePhyPdu: " << p->ToString());
+        //     NS_LOG_INFO("Received packet creation times for RNTI " << rnti << " with size " << tag.creationTimes.size());
+        //     std::cout<<"ue - mac으로부터 받은 rnti "<<rnti<<"의 가장 오래된 패킷 생성 시간 : "<<gnb_mac_Ctime_queue_map[rnti].front()<<std::endl;  
+        // }
 
         ReceiveBsrMessage(bsr); // Here it will be converted again, but our job is done.
         return;
@@ -1019,9 +1024,7 @@ NrGnbMac::DoUlCqiReport(NrMacSchedSapProvider::SchedUlCqiInfoReqParameters ulcqi
 }
 
 /**
- * gNB에서 UE의 Buffer Status 받는 곳
- * TODO : NrControlMessage::BSR 구현해서 태그 떼고 큐 가져와서 대입하기
- * 궁금한 점 : tracing이랑 이렇게 메시지 헤드에 큐를 보내는 것이 얼마나 차이가 큰지?
+ * gNB에서 UE의 패킷 생성시간 큐 NrSrMessage로부터 받는곳
  */
 void
 NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
@@ -1030,15 +1033,19 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
 
     switch (msg->GetMessageType())
     {
-    case (NrControlMessage::BSR) :
+    case (NrControlMessage::BSR) :  // 안씁니다.
     {
         // NrControlMessage에 추가한 BSR 메시지를 gnb-mac에서 수신하는 것 추가
-        
+        // 안씁니다.
     }
     case (NrControlMessage::SR): {
         // Report it to the CCM. Then he will call the right MAC
         Ptr<NrSRMessage> sr = DynamicCast<NrSRMessage>(msg);
+        uint16_t sr_rnti = sr->GetRNTI();
+        NS_LOG_INFO("Received SR from RNTI "<<sr_rnti);
         m_ccmMacSapUser->UlReceiveSr(sr->GetRNTI(), GetBwpId());
+        gnb_mac_Ctime_queue_map[sr_rnti] = sr->GetPacketCreationTimes();    // ue-mac으로 부터 sr과 함께 패킷 생성시간 큐 받음
+        NS_LOG_INFO("Queue Size : "<<gnb_mac_Ctime_queue_map.size());
         break;
     }
     case (NrControlMessage::DL_CQI): {
@@ -1368,10 +1375,17 @@ void
 NrGnbMac::DoConfigureMac(uint16_t ulBandwidth, uint16_t dlBandwidth)
 {
     NS_LOG_FUNCTION(this);
+    std::cout<<"[DoConfigureMac] : Test Code\n";
+    // test start
+    NS_LOG_INFO("PHY RB Num before division: " << m_phySapProvider->GetRbNum());
+    NS_LOG_INFO("NumRbPerRbg: " << GetNumRbPerRbg());
+    // test end
 
     // The bandwidth arrived in Hz. We need to know it in number of RB, and then
     // consider how many RB are inside a single RBG.
     uint16_t bw_in_rbg = m_phySapProvider->GetRbNum() / GetNumRbPerRbg();
+    // uint32_t temp = m_phySapProvider->GetRbNum();
+    // std::cout<<"RbNum : "<<temp<<", RbNumPerRbg : "<<GetNumRbPerRbg<<std::endl;
     m_bandwidthInRbg = bw_in_rbg;
 
     NS_LOG_DEBUG("Mac configured. Attributes:"
@@ -1434,7 +1448,10 @@ NrGnbMac::GetDlCtrlDci() const
 {
     NS_LOG_FUNCTION(this);
 
+    std::cout<<"[GetDlCtrlDci] RB Num : "<<m_phySapProvider->GetRbNum()<<std::endl;
+
     auto bwInRbg = m_phySapProvider->GetRbNum() / GetNumRbPerRbg();
+
     NS_ASSERT(bwInRbg > 0);
     std::vector<uint8_t> rbgBitmask(bwInRbg, 1);
 

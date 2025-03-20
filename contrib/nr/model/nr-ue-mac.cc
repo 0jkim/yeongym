@@ -432,6 +432,8 @@ NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters par
 /**
  * 갱신한 UE 별 패킷 Queue map을 BSR과 함께 gNB로 송신
  * SHORT_BSR에 Tag 형식으로 붙이기
+ * 태그는 잠깐 나가있어.
+ * NrSrMessage로 복귀. 나머지는 안씀
  */
 void
 NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
@@ -500,12 +502,16 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
      * 기존에는 사용되지 않는 NrBsrMessage 클래스 내부에 UE 별 패킷 큐를 구성해서 사용할 것임.
      * 
      * ************************* SHORT_BSR에 Tag 붙이는 형식으로 변경*************************
+     * 태그는 잠깐 나가있어.
      */
+    // NrBsrMessage 부활 <- . . . 너도 나가있어.
     Ptr<NrBsrMessage> msg = Create<NrBsrMessage>();
     msg->SetSourceBwp(GetBwpId());
-    // msg->SetBsr(bsr);
+    msg->SetBsr(bsr);
     // msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map[m_rnti]); // DoReportBufferStatus 메서드에서 갱신한 Queue를 Message에 삽입
+    // msg->SetRnti(m_rnti);
     // m_phySapProvider->SendControlMessage(msg);  // gNB로 보내기
+    // std::cout<<"Sent NrBsrMessage with queue size " << ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti <<std::endl;
     // NS_LOG_INFO("Sent NrBsrMessage with queue size " << ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti);
 
     m_macTxedCtrlMsgsTrace(m_currentSlot, GetCellId(), bsr.m_rnti, GetBwpId(), msg);
@@ -513,6 +519,7 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     // Here we send the real SHORT_BSR, as a subpdu.
     /**
      * SHORT_BSR Header에 패킷 생성 시간 큐를 Tag를 붙여서 사용할 것임.
+     * 태그는 잠깐 나가있어.
      */
     Ptr<Packet> p = Create<Packet>();
 
@@ -531,22 +538,24 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     p->AddPacketTag(bearerTag);
     
     // PacketCreationTimeTag 헤더에 추가
-    PacketCreationTimeTag packetTag;
-    packetTag.rnti = m_rnti;
-    std::queue<uint64_t> temp = ue_mac_packet_Ctime_Queue_Map[m_rnti];
-    while (!temp.empty())
-    {
-        packetTag.creationTimes.push_back(temp.front());
-        temp.pop();
-    }
-    p->AddPacketTag(packetTag);
+    // 태그는 잠깐 나가있어.
+    // PacketCreationTimeTag packetTag;
+    // packetTag.rnti = m_rnti;
+    // std::queue<uint64_t> temp = ue_mac_packet_Ctime_Queue_Map[m_rnti];
+    // while (!temp.empty())
+    // {
+    //     packetTag.creationTimes.push_back(temp.front());
+    //     temp.pop();
+    // }
+    // p->AddPacketTag(packetTag);
     
     m_ulDciTotalUsed += p->GetSize();
     NS_ASSERT_MSG(m_ulDciTotalUsed <= m_ulDci->m_tbSize,
                   "We used more data than the DCI allowed us.");
 
-    // [Output 2] : Send packetCreationTimeTag
-    std::cout<<"SHORT BSR과 함께 패킷 생성 시간 태그에 붙여서 전송"<<std::endl;
+    // [Output 2] : Send packetCreationTimeTag 
+    // 태그는 잠깐 나가있어.
+    // std::cout<<"SHORT BSR과 함께 패킷 생성 시간 태그에 붙여서 전송"<<std::endl;
     m_phySapProvider->SendMacPdu(p, dataSfn, symStart, m_ulDci->m_rnti);
     
 }
@@ -622,7 +631,7 @@ NrUeMac::SendSR() const
     Ptr<NrSRMessage> msg = Create<NrSRMessage>();
     msg->SetSourceBwp(GetBwpId());
     msg->SetRNTI(m_rnti);
-
+    msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map.at(m_rnti));  // 패킷 생성시간 큐 보냄
     m_macTxedCtrlMsgsTrace(m_currentSlot, GetCellId(), m_rnti, GetBwpId(), msg);
     m_phySapProvider->SendControlMessage(msg);
 }
