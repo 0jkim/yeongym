@@ -62,6 +62,10 @@ class MyModel : public Application
             std::uniform_int_distribution<uint32_t> sizeDist(m_isMobile ? 200 : 50, m_isMobile ? 500 : 200);
             uint32_t packetSize = sizeDist(m_rng);
             Ptr<Packet> pkt = Create<Packet>(packetSize);
+            Ipv4Header ipv4Header;
+            ipv4Header.SetProtocol (Ipv4L3Protocol::PROT_NUMBER);
+            pkt->AddHeader (ipv4Header);
+            
             m_device->Send(pkt, m_address, Ipv4L3Protocol::PROT_NUMBER);
             NS_LOG_INFO("UE send packet of size " << packetSize << "bytes");
 
@@ -148,7 +152,7 @@ int main(int argc, char* argv[])
     double bandwidthBand1 = 10e6;          // 5MHz 주파수 대역 (699.5 - 700.5MHz)
     uint16_t numerologyBwp1 = 0;          // mMTC numerology 0
     uint16_t gNBNum = 1;                  // 1 gNB
-    uint16_t ueNum = 10;                 // 100 UE
+    uint16_t ueNum = 30;                 // 100 UE
     double isd = 1732.0;                  // ISD 1732m
 
     bool enableUl = true;     // Uplink on
@@ -179,7 +183,7 @@ int main(int argc, char* argv[])
     gnbNodes.Create(gNBNum);
     NodeContainer ueNodes;
     ueNodes.Create(ueNum * gNBNum);
-    
+
     // gNB mobility
     MobilityHelper gnbMobility;
     gnbMobility.SetPositionAllocator("ns3::GridPositionAllocator",
@@ -360,7 +364,8 @@ int main(int argc, char* argv[])
     // Set IP
     InternetStackHelper internet;
     internet.Install(ueNodes);
-    Ipv4InterfaceContainer ueIpIface = epcHelper->AssignUeIpv4Address(ueNetDev);
+    Ipv4InterfaceContainer ueIpIface;
+    ueIpIface = epcHelper->AssignUeIpv4Address(NetDeviceContainer (ueNetDev));
 
     // Attach UE and gNB
     nrHelper->AttachToClosestGnb(ueNetDev, enbNetDev);
