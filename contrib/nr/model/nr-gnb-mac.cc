@@ -1045,8 +1045,27 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
         NS_LOG_INFO("Received SR from RNTI "<<sr_rnti);
         m_ccmMacSapUser->UlReceiveSr(sr->GetRNTI(), GetBwpId());
         gnb_mac_Ctime_queue_map[sr_rnti] = sr->GetPacketCreationTimes();    // ue-mac으로 부터 sr과 함께 패킷 생성시간 큐 받음
-        NS_LOG_INFO("Queue Size : "<<gnb_mac_Ctime_queue_map.size());
-        break;
+        
+        // [Output 3] : UE->gNB 큐 정확하게 왔는지 확인
+        // 큐 테스트
+        // std::cout<<"Rnti "<<sr->GetRNTI()<<"의 큐 정보\n사이즈 : "<<gnb_mac_Ctime_queue_map[sr_rnti].size()<<"\n";
+        // std::cout<<"큐 elements : ";
+        // std::queue<uint64_t> temp = gnb_mac_Ctime_queue_map[sr_rnti];
+        // for(int i=0;i<gnb_mac_Ctime_queue_map.size();i++)
+        // {
+        //     if(!temp.empty())
+        //     {
+        //         std::cout<<temp.front();
+        //     }
+        //     else
+        //     {
+        //         break;
+        //     }
+        //     temp.pop();
+        //     std::cout<<std::endl;
+        // }
+        // NS_LOG_INFO("Queue Size : "<<gnb_mac_Ctime_queue_map.size());
+        // break;
     }
     case (NrControlMessage::DL_CQI): {
         Ptr<NrDlCqiMessage> cqi = DynamicCast<NrDlCqiMessage>(msg);
