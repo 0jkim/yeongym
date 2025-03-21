@@ -2563,6 +2563,8 @@ NrMacSchedulerNs3::DoSchedUlTriggerReq(
  * \param params SR list
  *
  * m_srList will be evaluated in DoScheduleUlSr()
+ * gNB->Scheduler
+ * rnti 별 패킷 생성 시간 큐 받아옴
  */
 void
 NrMacSchedulerNs3::DoSchedUlSrInfoReq(
@@ -2574,6 +2576,12 @@ NrMacSchedulerNs3::DoSchedUlSrInfoReq(
     for (const auto& ue : params.m_srList)
     {
         NS_LOG_INFO("UE " << ue << " asked for a SR ");
+
+        // params(SchedUlSrInfo)의 rnti 별 패킷 생성 시간 큐 맵을 ns3-scheduler 멤버 변수에 저장
+        if(params.sched_packet_ctime_queue_map.find(ue) != params.sched_packet_ctime_queue_map.end())
+        {
+            ns3_packet_Ctime_queue_map[ue]=params.sched_packet_ctime_queue_map.at(ue);
+        }
 
         auto it = std::find(m_srList.begin(), m_srList.end(), ue);
         if (it == m_srList.end())

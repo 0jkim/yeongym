@@ -7,6 +7,7 @@
 
 #include "nr-control-messages.h"
 #include "nr-phy-mac-common.h"
+#include <queue>
 
 namespace ns3
 {
@@ -88,7 +89,7 @@ class NrMacSchedSapProvider
         SfnSf m_snfSf;                                   //!< SfnSf
         std::vector<struct UlHarqInfo> m_ulHarqInfoList; //!< UL HARQ info list
         LteNrTddSlotType m_slotType{F};                  //!< Indicate the type of slot requested
-        std::unordered_map<uint16_t, std::queue<uint64_t>> m_packetCreationTimes;   // UE 별 패킷 생성 시간 큐
+        std::unordered_map<uint16_t, std::queue<uint64_t>> sched_packetCreationTimes;   // UE 별 패킷 생성 시간 큐
     };
 
     /**
@@ -112,6 +113,7 @@ class NrMacSchedSapProvider
     {
         SfnSf m_snfSf;                  //!< SnfSf in which the sr where received
         std::vector<uint16_t> m_srList; //!< List of RNTI which asked for a SR
+        std::unordered_map<uint16_t, std::queue<uint64_t>> sched_packet_ctime_queue_map;    // rnti 별 패킷 생성시간 큐 맵 변수
     };
 
     /**

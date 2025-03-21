@@ -755,14 +755,20 @@ NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
         params.m_srList.insert(params.m_srList.begin(), m_srRntiList.begin(), m_srRntiList.end());
         m_srRntiList.clear();
 
-        m_macSchedSapProvider->SchedUlSrInfoReq(params);
-
+        // rnti 별로 SR메시지와 함께 패킷 생성 큐를 보낸다.
+        for(const auto &rnti : params.m_srList)
+        {
+            params.sched_packet_ctime_queue_map[rnti] = gnb_mac_Ctime_queue_map[rnti];
+        }
+        
         for (const auto& v : params.m_srList)
         {
             Ptr<NrSRMessage> msg = Create<NrSRMessage>();
             msg->SetRNTI(v);
             m_macRxedCtrlMsgsTrace(m_currentSlot, GetCellId(), v, GetBwpId(), msg);
         }
+
+        m_macSchedSapProvider->SchedUlSrInfoReq(params);
     }
 
     // Send UL BSR reports to the scheduler
@@ -786,7 +792,6 @@ NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
 
     // SchedUlTriggerReqParameters에 패킷 생성 시간 큐 저장 변수 구현 및 추가
     NrMacSchedSapProvider::SchedUlTriggerReqParameters ulParams;
-    ulParams.sched_packetCreationTimes = gnb_mac_Ctime_queue_map;   // gNB 큐 -> Scheduler 큐
     ulParams.m_snfSf = sfnSf;
     ulParams.m_slotType = type;
 
@@ -1049,7 +1054,7 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
         // [Output 3] : UE->gNB 큐 정확하게 왔는지 확인
         // 큐 테스트
         // std::cout<<"Rnti "<<sr->GetRNTI()<<"의 큐 정보\n사이즈 : "<<gnb_mac_Ctime_queue_map[sr_rnti].size()<<"\n";
-        // std::cout<<"큐 elements : ";
+        // std::cout<<"큐 elements : \n";
         // std::queue<uint64_t> temp = gnb_mac_Ctime_queue_map[sr_rnti];
         // for(int i=0;i<gnb_mac_Ctime_queue_map.size();i++)
         // {

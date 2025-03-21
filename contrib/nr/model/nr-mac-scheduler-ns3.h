@@ -234,6 +234,7 @@ class NrFhSchedSapProvider;
 class NrMacSchedulerNs3 : public NrMacScheduler
 {
   public:
+    std::unordered_map<uint16_t, std::queue<uint64_t>> ns3_packet_Ctime_queue_map;  // ns3-scheduler용 rnti별 패킷 생성시간 큐 맵 변수.
     /**
      * \brief GetTypeId
      * \return The TypeId of the class
