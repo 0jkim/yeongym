@@ -334,6 +334,9 @@ NrMacSchedulerOfdma::AssignDLRBG(uint32_t symAvail, const ActiveUeMap& activeDl)
     return symPerBeam;
 }
 
+/**
+ * Ofdma 방식으로 상향링크 Resource Bloack Allocation 수행 메서드
+ */
 NrMacSchedulerNs3::BeamSymbolMap
 NrMacSchedulerOfdma::AssignULRBG(uint32_t symAvail, const ActiveUeMap& activeUl) const
 {
@@ -368,7 +371,7 @@ NrMacSchedulerOfdma::AssignULRBG(uint32_t symAvail, const ActiveUeMap& activeUl)
         {
             BeforeUlSched(ue, FTResources(rbgAssignable, beamSym));
         }
-
+        
         while (resources > 0)
         {
             GetFirst GetUe;
