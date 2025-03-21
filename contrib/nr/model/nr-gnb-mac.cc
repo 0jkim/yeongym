@@ -761,14 +761,14 @@ NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
             params.sched_packet_ctime_queue_map[rnti] = gnb_mac_Ctime_queue_map[rnti];
         }
         
+        m_macSchedSapProvider->SchedUlSrInfoReq(params);
+
         for (const auto& v : params.m_srList)
         {
             Ptr<NrSRMessage> msg = Create<NrSRMessage>();
             msg->SetRNTI(v);
             m_macRxedCtrlMsgsTrace(m_currentSlot, GetCellId(), v, GetBwpId(), msg);
         }
-
-        m_macSchedSapProvider->SchedUlSrInfoReq(params);
     }
 
     // Send UL BSR reports to the scheduler
@@ -1070,7 +1070,8 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
         //     std::cout<<std::endl;
         // }
         // NS_LOG_INFO("Queue Size : "<<gnb_mac_Ctime_queue_map.size());
-        // break;
+
+        break;
     }
     case (NrControlMessage::DL_CQI): {
         Ptr<NrDlCqiMessage> cqi = DynamicCast<NrDlCqiMessage>(msg);

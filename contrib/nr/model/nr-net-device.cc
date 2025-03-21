@@ -229,6 +229,7 @@ NrNetDevice::Receive(Ptr<Packet> p)
     }
     else
     {
+        NS_LOG_INFO("Packet details before error: " << p->ToString());
         NS_ABORT_MSG("Unknown IP type");
     }
 }

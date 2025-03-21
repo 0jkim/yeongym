@@ -2581,6 +2581,21 @@ NrMacSchedulerNs3::DoSchedUlSrInfoReq(
         if(params.sched_packet_ctime_queue_map.find(ue) != params.sched_packet_ctime_queue_map.end())
         {
             ns3_packet_Ctime_queue_map[ue]=params.sched_packet_ctime_queue_map.at(ue);
+            // [Output 4] : gNB->scheduler-ns3
+            std::cout<<"gNB->scheduler-ns3 (Queue Checking rnti "<<ue<<") : \n";
+            std::queue<uint64_t> temp = ns3_packet_Ctime_queue_map[ue];
+            for(int i=0;i<ns3_packet_Ctime_queue_map[ue].size();i++)
+            {
+                if(!temp.empty())
+                {
+                    std::cout<<temp.front()<<std::endl;
+                }
+                else
+                {
+                    break;
+                }
+                temp.pop();
+            }
         }
 
         auto it = std::find(m_srList.begin(), m_srList.end(), ue);
