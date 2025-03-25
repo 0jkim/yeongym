@@ -759,6 +759,7 @@ NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
         for(const auto &rnti : params.m_srList)
         {
             params.sched_packet_ctime_queue_map[rnti] = gnb_mac_Ctime_queue_map[rnti];
+            // std::cout<<"[nr-gnb-mac] : rnti "<<rnti<<"의 DoSlotUlIndication 직전 oldest queue "<<gnb_mac_Ctime_queue_map[rnti].front()<<std::endl;
         }
         
         m_macSchedSapProvider->SchedUlSrInfoReq(params);
@@ -952,6 +953,7 @@ NrGnbMac::DoReceivePhyPdu(Ptr<Packet> p)
     }
 
     // Ok, we know it is data, so let's extract and pass to RLC.
+    std::cout<<"[gnb-mac] : 패킷 성공적으로 수신\n";
     NrMacHeaderVs macHeader;
     p->RemoveHeader(macHeader);
 
@@ -1049,8 +1051,14 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
         uint16_t sr_rnti = sr->GetRNTI();
         NS_LOG_INFO("Received SR from RNTI "<<sr_rnti);
         m_ccmMacSapUser->UlReceiveSr(sr->GetRNTI(), GetBwpId());
-        gnb_mac_Ctime_queue_map[sr_rnti] = sr->GetPacketCreationTimes();    // ue-mac으로 부터 sr과 함께 패킷 생성시간 큐 받음
         
+        // ue-mac으로부터 패킷 큐 이어받기
+        std::queue<uint64_t> newPackets = sr->GetPacketCreationTimes(); // 복사본 생성
+        while (!newPackets.empty()) 
+        {
+            gnb_mac_Ctime_queue_map[sr_rnti].push(newPackets.front()); // 새로운 패킷 추가
+            newPackets.pop();
+        }
         // [Output 3] : UE->gNB 큐 정확하게 왔는지 확인
         // 큐 테스트
         // std::cout<<"Rnti "<<sr->GetRNTI()<<"의 큐 정보\n사이즈 : "<<gnb_mac_Ctime_queue_map[sr_rnti].size()<<"\n";
@@ -1090,11 +1098,26 @@ NrGnbMac::DoReceiveControlMessage(Ptr<NrControlMessage> msg)
     }
 }
 
+// 여기서 상향링크 Harq 메시지를 저장하는 것으로 추청됨.
 void
 NrGnbMac::DoUlHarqFeedback(const UlHarqInfo& params)
 {
     NS_LOG_FUNCTION(this);
     m_ulHarqInfoReceived.push_back(params);
+
+    uint16_t rnti = params.m_rnti;
+    if(params.IsReceivedOk())
+    {
+        if(!gnb_mac_Ctime_queue_map[rnti].empty())
+        {
+            std::cout<<"pop\n";
+            gnb_mac_Ctime_queue_map[rnti].pop();
+        }
+    }
+    else
+    {
+        // NACK는 유지
+    }
 }
 
 void

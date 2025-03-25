@@ -1,15 +1,13 @@
 /**
  * TODO : nr-ue-mac
  * 1. Packets Queue Delete를 HARQ ACK 수신으로 처리하기
- * 2. HARQ를 못쓰는 환경일 때, delete 어떻게 할지 고민 
+ * 2. HARQ를 못쓰는 환경일 때, delete 어떻게 할지 고민
     (mMTC 에서는 MAC 상위계층인 RLC의 Am모드에서 사용되는 ACK 메시지를 자주 사용한다고 함. . .)
  */
-
 
 // Copyright (c) 2019 Centre Tecnologic de Telecomunicacions de Catalunya (CTTC)
 //
 // SPDX-License-Identifier: GPL-2.0-only
-
 
 #define NS_LOG_APPEND_CONTEXT                                                                      \
     do                                                                                             \
@@ -387,8 +385,14 @@ NrUeMac::DoTransmitPdu(NrMacSapProvider::TransmitPduParameters params)
 
     NS_ASSERT_MSG(m_ulDciTotalUsed <= m_ulDci->m_tbSize,
                   "We used more data than the DCI allowed us.");
-
+    
     m_phySapProvider->SendMacPdu(params.pdu, m_ulDciSfnsf, m_ulDci->m_symStart, m_ulDci->m_rnti);
+
+    // data를 설공적으로 보냈으면 패킷을 큐에서 삭제
+    if(!ue_mac_packet_Ctime_Queue_Map[m_rnti].empty())
+    {
+        ue_mac_packet_Ctime_Queue_Map[m_rnti].pop();
+    }
 }
 
 /**
@@ -417,11 +421,13 @@ NrUeMac::DoReportBufferStatus(NrMacSapProvider::ReportBufferStatusParameters par
     // rnti 별 packet creation time stamp 큐에 추가
     uint16_t rnti = params.rnti;
     ue_mac_packet_Ctime_Queue_Map[rnti].push(Simulator::Now().GetMicroSeconds());
-    NS_LOG_INFO("Added packet creation time for RNTI " << rnti << ": " << Simulator::Now().GetMicroSeconds());
+    NS_LOG_INFO("Added packet creation time for RNTI " << rnti << ": "
+                                                       << Simulator::Now().GetMicroSeconds());
 
     // [Output 1] : 패킷 큐 확인용 메시지
-    std::cout<<"현재 rnti "<<rnti<<"의 가장 오래된 패킷 생성시간 큐 상태 : "<<ue_mac_packet_Ctime_Queue_Map[rnti].front()<<std::endl;
-    
+    // std::cout<<"현재 rnti "<<rnti<<"의 가장 오래된 패킷 생성시간 큐 상태 :
+    // "<<ue_mac_packet_Ctime_Queue_Map[rnti].front()<<std::endl;
+
     if (m_srState == INACTIVE)
     {
         NS_LOG_INFO("INACTIVE -> TO_SEND, bufSize " << GetTotalBufSize());
@@ -500,7 +506,7 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     // create the message. It is used only for tracing, but we don't send it...
     /**
      * 기존에는 사용되지 않는 NrBsrMessage 클래스 내부에 UE 별 패킷 큐를 구성해서 사용할 것임.
-     * 
+     *
      * ************************* SHORT_BSR에 Tag 붙이는 형식으로 변경*************************
      * 태그는 잠깐 나가있어.
      */
@@ -508,11 +514,13 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     Ptr<NrBsrMessage> msg = Create<NrBsrMessage>();
     msg->SetSourceBwp(GetBwpId());
     msg->SetBsr(bsr);
-    // msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map[m_rnti]); // DoReportBufferStatus 메서드에서 갱신한 Queue를 Message에 삽입
-    // msg->SetRnti(m_rnti);
+    // msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map[m_rnti]); // DoReportBufferStatus
+    // 메서드에서 갱신한 Queue를 Message에 삽입 msg->SetRnti(m_rnti);
     // m_phySapProvider->SendControlMessage(msg);  // gNB로 보내기
-    // std::cout<<"Sent NrBsrMessage with queue size " << ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti <<std::endl;
-    // NS_LOG_INFO("Sent NrBsrMessage with queue size " << ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti);
+    // std::cout<<"Sent NrBsrMessage with queue size " <<
+    // ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti <<std::endl;
+    // NS_LOG_INFO("Sent NrBsrMessage with queue size " <<
+    // ue_mac_packet_Ctime_Queue_Map[m_rnti].size() << " for RNTI " << m_rnti);
 
     m_macTxedCtrlMsgsTrace(m_currentSlot, GetCellId(), bsr.m_rnti, GetBwpId(), msg);
 
@@ -536,7 +544,7 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
 
     NrRadioBearerTag bearerTag(m_rnti, NrMacHeaderFsUl::SHORT_BSR, 0);
     p->AddPacketTag(bearerTag);
-    
+
     // PacketCreationTimeTag 헤더에 추가
     // 태그는 잠깐 나가있어.
     // PacketCreationTimeTag packetTag;
@@ -548,16 +556,15 @@ NrUeMac::SendReportBufferStatus(const SfnSf& dataSfn, uint8_t symStart)
     //     temp.pop();
     // }
     // p->AddPacketTag(packetTag);
-    
+
     m_ulDciTotalUsed += p->GetSize();
     NS_ASSERT_MSG(m_ulDciTotalUsed <= m_ulDci->m_tbSize,
                   "We used more data than the DCI allowed us.");
 
-    // [Output 2] : Send packetCreationTimeTag 
+    // [Output 2] : Send packetCreationTimeTag
     // 태그는 잠깐 나가있어.
     // std::cout<<"SHORT BSR과 함께 패킷 생성 시간 태그에 붙여서 전송"<<std::endl;
     m_phySapProvider->SendMacPdu(p, dataSfn, symStart, m_ulDci->m_rnti);
-    
 }
 
 void
@@ -631,7 +638,7 @@ NrUeMac::SendSR() const
     Ptr<NrSRMessage> msg = Create<NrSRMessage>();
     msg->SetSourceBwp(GetBwpId());
     msg->SetRNTI(m_rnti);
-    msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map.at(m_rnti));  // 패킷 생성시간 큐 보냄
+    msg->SetPacketCreationTimes(ue_mac_packet_Ctime_Queue_Map.at(m_rnti)); // 패킷 생성시간 큐 보냄
     m_macTxedCtrlMsgsTrace(m_currentSlot, GetCellId(), m_rnti, GetBwpId(), msg);
     m_phySapProvider->SendControlMessage(msg);
 }

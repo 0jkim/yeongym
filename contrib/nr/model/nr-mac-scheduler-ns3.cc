@@ -1075,7 +1075,7 @@ NrMacSchedulerNs3::ProcessHARQFeedbacks(
         bool should_pop =
             harqFeedbackIt->IsReceivedOk() || ueProcess.m_dciElement->m_rv == maxHarqReTx;
 
-        const_cast<NrMacSchedulerNs3*>(this)->HandleHarqFeedback(*harqFeedbackIt, should_pop);
+        // const_cast<NrMacSchedulerNs3*>(this)->HandleHarqFeedback(*harqFeedbackIt, should_pop);
 
         // ACK or 재전송 최대 횟수를 초과(데이터 드랍) => pop 타이밍
         if (should_pop)
