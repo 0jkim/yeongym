@@ -235,6 +235,42 @@ class NrMacSchedulerNs3 : public NrMacScheduler
 {
   public:
     std::unordered_map<uint16_t, std::queue<uint64_t>> ns3_packet_Ctime_queue_map;  // ns3-scheduler용 rnti별 패킷 생성시간 큐 맵 변수.
+
+    template <typename T> void HandleHarqFeedback(const T& feedback, bool should_pop)
+    {
+        uint16_t rnti = feedback.m_rnti;
+        auto& queue = ns3_packet_Ctime_queue_map[rnti];
+        std::cout << "RNTI: " << rnti << ", IsReceivedOk: " << (feedback.IsReceivedOk() ? "true" : "false") << "\n";
+        if (should_pop)
+        {
+            if (!queue.empty())
+            {
+                std::cout<<"<HandleHarqFeedback> : Packet pop\n";
+                queue.pop();
+            }
+        }
+        else
+        {
+            std::cout<<"<HandleHarqFeedback> : Packet Retransmit\n";
+        }
+        // NACK: 큐 유지
+    }
+    /**
+     * Rnti 별 패킷 생성 큐 중에서 가장 오래된 패킷 생성 시간을 가져오는 메서드
+     * (ofdma-greedy에서 호출)
+     */
+    uint64_t GetAge(uint16_t ueRnti) const
+    {
+        auto it = ns3_packet_Ctime_queue_map.find(ueRnti);
+        if(it!=ns3_packet_Ctime_queue_map.end())
+        {
+            return it->second.front();
+        }
+        else
+        {
+            return 0;
+        }
+    }
     /**
      * \brief GetTypeId
      * \return The TypeId of the class

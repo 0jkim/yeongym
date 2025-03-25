@@ -1040,6 +1040,7 @@ NrMacSchedulerNs3::MergeHARQ(std::vector<T>* existingFeedbacks,
  * \see UlHarqInfo
  * \see HarqProcess
  */
+// ++ UE가 보낸 패킷이 ACK/NACK인지 판단하는 메서드
 template <typename T>
 void
 NrMacSchedulerNs3::ProcessHARQFeedbacks(
@@ -1071,15 +1072,25 @@ NrMacSchedulerNs3::ProcessHARQFeedbacks(
         NS_ASSERT(ueProcess.m_dciElement->m_rv < 4);
         uint8_t maxHarqReTx = m_enableHarqReTx ? 3 : 0;
 
-        if (harqFeedbackIt->IsReceivedOk() || ueProcess.m_dciElement->m_rv == maxHarqReTx)
+        bool should_pop =
+            harqFeedbackIt->IsReceivedOk() || ueProcess.m_dciElement->m_rv == maxHarqReTx;
+
+        const_cast<NrMacSchedulerNs3*>(this)->HandleHarqFeedback(*harqFeedbackIt, should_pop);
+
+        // ACK or 재전송 최대 횟수를 초과(데이터 드랍) => pop 타이밍
+        if (should_pop)
         {
             ueHarqVector.Erase(harqId);
             harqFeedbackIt = harqInfo->erase(harqFeedbackIt);
             NS_LOG_INFO("Erased processID " << static_cast<uint32_t>(harqId) << " of UE " << rnti
                                             << " direction " << direction);
+            // std::cout<<"<ProcessHARQFeedbacks> : pop timming\n";
         }
+        // 재전송 다시 해야함 => (패킷 유지 but, 다음 슬롯 스케줄링 시 front 다음으로 패킷 스케줄링
+        // 진행)
         else if (!harqFeedbackIt->IsReceivedOk())
         {
+            // std::cout<<"<ProcessHARQFeedbacks> : Retransmittion\n";
             ueProcess.m_status = HarqProcess::RECEIVED_FEEDBACK;
             nackReceived++;
             ++harqFeedbackIt;
@@ -2527,6 +2538,13 @@ NrMacSchedulerNs3::DoSchedUlTriggerReq(
         uint64_t existingSize = m_ulHarqToRetransmit.size();
         uint64_t inSize = params.m_ulHarqInfoList.size();
 
+        // 이전 Harq 피드백과 새로 들어온 Harq 피드백을 병합
+        /**
+         * 병합 과정
+         * 1. 이전 수신 HARQ 프로세스 재전송 목록에서 제거
+         * 2. 새로운 피드백 추가와 동시에 중복 제거 및 우선순위에 따라 병합
+         * 3. 병합 후 m_ulHarqToRetransmit은 clear
+         */
         ulHarqFeedback = MergeHARQ(&m_ulHarqToRetransmit, params.m_ulHarqInfoList, "UL");
 
         NS_ASSERT(m_ulHarqToRetransmit.empty());
@@ -2554,7 +2572,6 @@ NrMacSchedulerNs3::DoSchedUlTriggerReq(
 
         ProcessHARQFeedbacks(&ulHarqFeedback, NrMacSchedulerUeInfo::GetUlHarqVector, "UL");
     }
-
     ScheduleUl(params, ulHarqFeedback);
 }
 
@@ -2578,17 +2595,18 @@ NrMacSchedulerNs3::DoSchedUlSrInfoReq(
         NS_LOG_INFO("UE " << ue << " asked for a SR ");
 
         // params(SchedUlSrInfo)의 rnti 별 패킷 생성 시간 큐 맵을 ns3-scheduler 멤버 변수에 저장
-        if(params.sched_packet_ctime_queue_map.find(ue) != params.sched_packet_ctime_queue_map.end())
+        if (params.sched_packet_ctime_queue_map.find(ue) !=
+            params.sched_packet_ctime_queue_map.end())
         {
-            ns3_packet_Ctime_queue_map[ue]=params.sched_packet_ctime_queue_map.at(ue);
+            ns3_packet_Ctime_queue_map[ue] = params.sched_packet_ctime_queue_map.at(ue);
             // [Output 4] : gNB->scheduler-ns3
-            std::cout<<"gNB->scheduler-ns3 (Queue Checking rnti "<<ue<<") : \n";
+            std::cout << "gNB->scheduler-ns3 (Queue Checking rnti " << ue << ") : \n";
             std::queue<uint64_t> temp = ns3_packet_Ctime_queue_map[ue];
-            for(int i=0;i<ns3_packet_Ctime_queue_map[ue].size();i++)
+            for (int i = 0; i < ns3_packet_Ctime_queue_map[ue].size(); i++)
             {
-                if(!temp.empty())
+                if (!temp.empty())
                 {
-                    std::cout<<temp.front()<<std::endl;
+                    std::cout << temp.front() << std::endl;
                 }
                 else
                 {
@@ -2685,7 +2703,7 @@ NrMacSchedulerNs3::DoScheduleUlMsg3(PointInFTPlane* sPoint,
                     << ulMsg3Dci->m_rnti << " in slot: " << slotAlloc->m_sfnSf << " symStart "
                     << +ulMsg3Dci->m_symStart << " symEnd " << +ulMsg3Dci->m_numSym
                     << " number of PRB" << GetBandwidthInRbg() * GetNumRbPerRbg() << " MCS "
-                    << (uint16_t) + ulMsg3Dci->m_mcs << " tbSize in bytes:" << +ulMsg3Dci->m_tbSize
+                    << (uint16_t)+ulMsg3Dci->m_mcs << " tbSize in bytes:" << +ulMsg3Dci->m_tbSize
                     << " BWP index: " << +ulMsg3Dci->m_bwpIndex
                     << " RBG bitmask:" << +ulMsg3Dci->m_rbgBitmask.size());
 
