@@ -268,8 +268,9 @@ class NrMacSchedulerNs3 : public NrMacScheduler
         auto it = ns3_packet_Ctime_queue_map.find(ueRnti);
         if (it != ns3_packet_Ctime_queue_map.end())
         {
-            std::cout<<"[nr-mac-scheduler-ns3] : rnti "<<ueRnti<<"의 가장 오래된 패킷 생성 시간(AoI) : "<<it->second.front()<<std::endl;
-            return it->second.front();
+            uint64_t m_aoi = Simulator::Now().GetMicroSeconds()-it->second.front();
+            std::cout<<"[nr-mac-scheduler-ns3] : rnti "<<ueRnti<<"의 AoI = "<<m_aoi<<std::endl;
+            return m_aoi;
         }
         else
         {

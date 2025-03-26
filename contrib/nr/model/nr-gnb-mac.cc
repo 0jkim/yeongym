@@ -744,6 +744,9 @@ NrGnbMac::DoSlotUlIndication(const SfnSf& sfnSf, LteNrTddSlotType type)
     {
         // m_ulCqiReceived.at (i).m_sfnSf = ((0x3FF & frameNum) << 16) | ((0xFF & subframeNum) << 8)
         // | (0xFF & varTtiNum);
+        // NS_LOG_INFO("[gnb-mac]::DoSlotUlIndication - *** report SINR :"
+        //         << nr::FfConverter::fpS11dot3toDouble(i.m_ulCqi.m_sinr[0])
+        //         << " slot: " << m_currentSlot);
         m_macSchedSapProvider->SchedUlCqiInfoReq(i);
     }
     m_ulCqiReceived.clear();
@@ -953,7 +956,7 @@ NrGnbMac::DoReceivePhyPdu(Ptr<Packet> p)
     }
 
     // Ok, we know it is data, so let's extract and pass to RLC.
-    std::cout<<"[gnb-mac] : 패킷 성공적으로 수신\n";
+    // std::cout<<"[gnb-mac] : 패킷 성공적으로 수신\n";
     NrMacHeaderVs macHeader;
     p->RemoveHeader(macHeader);
 
@@ -1022,7 +1025,7 @@ NrGnbMac::DoUlCqiReport(NrMacSchedSapProvider::SchedUlCqiInfoReqParameters ulcqi
     {
         NS_LOG_DEBUG(this << " gNB rxed an SRS UL-CQI");
     }
-    NS_LOG_INFO("*** UL CQI report SINR "
+    NS_LOG_INFO("*** UL CQI report SINR :"
                 << nr::FfConverter::fpS11dot3toDouble(ulcqi.m_ulCqi.m_sinr[0])
                 << " slot: " << m_currentSlot);
 
@@ -1110,7 +1113,7 @@ NrGnbMac::DoUlHarqFeedback(const UlHarqInfo& params)
     {
         if(!gnb_mac_Ctime_queue_map[rnti].empty())
         {
-            std::cout<<"pop\n";
+            // std::cout<<"pop\n";
             gnb_mac_Ctime_queue_map[rnti].pop();
         }
     }
@@ -1423,7 +1426,7 @@ void
 NrGnbMac::DoConfigureMac(uint16_t ulBandwidth, uint16_t dlBandwidth)
 {
     NS_LOG_FUNCTION(this);
-    std::cout<<"[DoConfigureMac] : Test Code\n";
+    // std::cout<<"[DoConfigureMac] : Test Code\n";
     // test start
     NS_LOG_INFO("PHY RB Num before division: " << m_phySapProvider->GetRbNum());
     NS_LOG_INFO("NumRbPerRbg: " << GetNumRbPerRbg());
@@ -1496,7 +1499,7 @@ NrGnbMac::GetDlCtrlDci() const
 {
     NS_LOG_FUNCTION(this);
 
-    std::cout<<"[GetDlCtrlDci] RB Num : "<<m_phySapProvider->GetRbNum()<<std::endl;
+    // std::cout<<"[GetDlCtrlDci] RB Num : "<<m_phySapProvider->GetRbNum()<<std::endl;
 
     auto bwInRbg = m_phySapProvider->GetRbNum() / GetNumRbPerRbg();
 

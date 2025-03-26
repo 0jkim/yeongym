@@ -200,12 +200,14 @@ NrMacSchedulerCQIManagement::RefreshUlCqiMaps(
 
         if (ue->m_ulCqi.m_timer == 0)
         {
+            NS_LOG_INFO("[cqi-management] : **Cqi Time out moment >> Rnti "<<ue->m_rnti<<"의 Cqi value = "<<ue->m_ulCqi.m_wbCqi);
             ue->m_ulCqi.m_wbCqi = 1; // lowest value for trying a transmission
             ue->m_ulCqi.m_cqiType = NrMacSchedulerUeInfo::CqiInfo::WB;
             ue->m_ulMcs = GetStartMcsUl();
         }
         else
         {
+            NS_LOG_INFO("[cqi-management] : **Cqi Time minus Rnti "<<ue->m_rnti<<"의 Cqi value = "<<ue->m_ulCqi.m_wbCqi);
             ue->m_ulCqi.m_timer -= 1;
         }
     }
