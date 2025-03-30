@@ -41,8 +41,14 @@ class MyModel : public Application
   public:
     MyModel()
         : m_packetSent(0),
-          m_running(true)
+          m_running(true),
+          m_sizeRng(CreateObject<UniformRandomVariable>()),
+          m_periodRng(CreateObject<UniformRandomVariable>())
     {
+        m_sizeRng->SetAttribute("Min", DoubleValue(50));
+        m_sizeRng->SetAttribute("Max", DoubleValue(500));
+        m_periodRng->SetAttribute("Min", DoubleValue(500));
+        m_periodRng->SetAttribute("Max", DoubleValue(5000));
     }
 
     virtual ~MyModel()
@@ -61,15 +67,18 @@ class MyModel : public Application
         m_nPackets = nPackets;
         m_simTime = simTime;
         m_isMobile = isMobile;
+        if (m_isMobile)
+        {
+            m_sizeRng->SetAttribute("Min", DoubleValue(200));
+            m_sizeRng->SetAttribute("Max", DoubleValue(500));
+        }
         m_rng.seed(seed);
         ScheduleNextPacket();
     }
 
     void SendPacketUl()
     {
-        std::uniform_int_distribution<uint32_t> sizeDist(m_isMobile ? 200 : 50,
-                                                         m_isMobile ? 500 : 200);
-        uint32_t packetSize = sizeDist(m_rng);
+        uint32_t packetSize = static_cast<uint32_t>(m_sizeRng->GetValue()); // 수정
         Ptr<Packet> pkt = Create<Packet>(packetSize);
         Ipv4Header ipv4Header;
         ipv4Header.SetProtocol(Ipv4L3Protocol::PROT_NUMBER);
@@ -86,8 +95,8 @@ class MyModel : public Application
 
     void ScheduleNextPacket()
     {
-        std::uniform_int_distribution<uint32_t> periodDist(500, 5000);
-        Time tNext = MilliSeconds(periodDist(m_rng));
+        Time tNext = MilliSeconds(m_periodRng->GetValue());
+        NS_LOG_INFO("m_periodRng : "<<m_periodRng->GetValue());
         Simulator::Schedule(tNext, &MyModel::SendPacketUl, this);
     }
 
@@ -99,6 +108,8 @@ class MyModel : public Application
     bool m_isMobile;
     bool m_running;
     std::mt19937 m_rng;
+    Ptr<UniformRandomVariable> m_sizeRng;   // 패킷 크기 난수 
+    Ptr<UniformRandomVariable> m_periodRng; // 패킷 주기 난수 
 };
 
 // EnableTracesIfConnected 함수를 main 외부로 이동
@@ -168,15 +179,19 @@ MonitorUeConnection(Ptr<NrHelper> nrHelper,
 int
 main(int argc, char* argv[])
 {
-    LogComponentEnable("NrGnbMac", LOG_LEVEL_INFO);
-    LogComponentEnable("NrMacSchedulerCQIManagement", LOG_LEVEL_INFO);
+    LogComponentEnable("yeongym", LOG_LEVEL_INFO);
+    // LogComponentEnable("NrGnbMac", LOG_LEVEL_INFO);
+    // LogComponentEnable("NrMacSchedulerCQIManagement", LOG_LEVEL_INFO);
+
+    RngSeedManager::SetSeed(2);  // 시드 값 설정
+    RngSeedManager::SetRun(2);   // 런 번호 설정
 
     double centralFrequencyBand1 = 700e6; // 700MHz 중심 주파수
     double bandwidthBand1 = 10e6;         // 5MHz 주파수 대역 (699.5 - 700.5MHz)
     uint16_t numerologyBwp1 = 0;          // mMTC numerology 0
     uint16_t gNBNum = 1;                  // 1 gNB
-    uint16_t ueNum = 30;                  // 100 UE
-    double isd = 1732.0;                  // ISD 1732m
+    uint16_t ueNum = 3;                  // 100 UE
+    double isd = 300.0;                  // ISD 1732m
 
     bool enableUl = true;     // Uplink on
     uint32_t nPackets = 1000; // Packets Numbers (for simulation)
@@ -211,9 +226,9 @@ main(int argc, char* argv[])
     MobilityHelper gnbMobility;
     gnbMobility.SetPositionAllocator("ns3::GridPositionAllocator",
                                      "MinX",
-                                     DoubleValue(0),
+                                     DoubleValue(300.0),
                                      "MinY",
-                                     DoubleValue(0),
+                                     DoubleValue(-300.0),
                                      "GridWidth",
                                      UintegerValue(1),
                                      "LayoutType",
@@ -227,21 +242,28 @@ main(int argc, char* argv[])
         {
             NS_FATAL_ERROR("No MobilityModel installed for gNB " << i);
         }
-        mob->SetPosition(Vector(i * 5.0, 0, 10.0));
+        mob->SetPosition(Vector(300.0, -300.0, 10.0));
         NS_LOG_INFO("✅ gNB " << i << " mobility model initialized.");
     }
 
     // UE mobility
     MobilityHelper ueMobility;
-    ueMobility.SetPositionAllocator("ns3::GridPositionAllocator",
-                                    "MinX",
-                                    DoubleValue(-2.5),
-                                    "MinY",
-                                    DoubleValue(-2.5),
-                                    "GridWidth",
-                                    UintegerValue(10),
-                                    "LayoutType",
-                                    StringValue("RowFirst"));
+    // ueMobility.SetPositionAllocator("ns3::GridPositionAllocator",
+    //                                 "MinX",
+    //                                 DoubleValue(-2.5),
+    //                                 "MinY",
+    //                                 DoubleValue(-2.5),
+    //                                 "GridWidth",
+    //                                 UintegerValue(10),
+    //                                 "LayoutType",
+    //                                 StringValue("RowFirst"));
+    /**
+     * UE 배치 test (for tbler scenario)
+     */
+    ueMobility.SetPositionAllocator("ns3::UniformDiscPositionAllocator",
+                                    "X", DoubleValue(300.0),
+                                    "Y", DoubleValue(-300.0),
+                                    "rho", DoubleValue(100.0));
     ueMobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
     ueMobility.Install(ueNodes);
 
@@ -261,11 +283,16 @@ main(int argc, char* argv[])
         {
             NS_FATAL_ERROR("No MobilityModel installed for UE " << i);
         }
-        if (i < (ueNum * gNBNum * 0.2))
+        if (i < (ueNum * gNBNum * 0.2)) // 20% 차량 UE (60km/h)
         {
-            mob->SetVelocity(Vector(27.78, 0, 0));
+            mob->SetVelocity(Vector(16.6, 0, 0));
             isMobile[indices[i]] = true;
-            NS_LOG_INFO("UE " << indices[i] << " set to 100km/h (Outdoor)");
+            NS_LOG_INFO("UE " << indices[i] << " set to 60km/h (Outdoor)");
+        }
+        else if (i < (ueNum * gNBNum * 0.6)) // 40% 고정 UE (3km/h)
+        {
+            mob->SetVelocity(Vector(0.833, 0, 0)); // 3km/h
+            NS_LOG_INFO("UE " << indices[i] << " set to 3km/h (Indoor)");
         }
         else
         {
@@ -317,7 +344,7 @@ main(int argc, char* argv[])
 
     // For data drop
     // Disable SRS (for data drop)
-    nrHelper->SetSchedulerAttribute("SrsSymbols", UintegerValue(0));
+    nrHelper->SetSchedulerAttribute("SrsSymbols", UintegerValue(1));
 
     // HARQ setting
     nrHelper->SetSchedulerAttribute("EnableHarqReTx", BooleanValue(true));
@@ -329,13 +356,13 @@ main(int argc, char* argv[])
 
     // Set mcs
     nrHelper->SetSchedulerAttribute("FixedMcsUl", BooleanValue(false));
-    nrHelper->SetSchedulerAttribute("StartingMcsUl", UintegerValue(12));
+    nrHelper->SetSchedulerAttribute("StartingMcsUl", UintegerValue(8));
     nrHelper->SetSchedulerAttribute("FixedMcsDl", BooleanValue(false));
-    nrHelper->SetSchedulerAttribute("StartingMcsDl", UintegerValue(4));
+    nrHelper->SetSchedulerAttribute("StartingMcsDl", UintegerValue(2));
 
     // Set for pathloss and shadowing (에러 없는 환경은 false)
     nrHelper->SetPathlossAttribute("ShadowingEnabled", BooleanValue(true));
-
+    
     // Set error model
     std::string errorModel = "ns3::NrEesmIrT1";
     nrHelper->SetUlErrorModel(errorModel);
