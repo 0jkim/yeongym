@@ -1336,10 +1336,29 @@ NrSpectrumPhy::CheckTransportBlockCorruptionStatus()
                                                        harqInfoList);
         }
 
-        tbInfo.m_isCorrupted = m_random->GetValue() <= tbInfo.m_outputOfEM->m_tbler;
-
+        /**
+         * 0~1 사이의 랜덤 벨류와 m_tbler을 비교해서 패킷 손상 여부를 판단함.
+         * 기존 코드 <- 랜덤 밸류로 손상 여부 판단
+         * yeongym <- m_yeongymDropPropagation과 m_tbler 비교
+         */
+        // tbInfo.m_isCorrupted = m_random->GetValue() <= tbInfo.m_outputOfEM->m_tbler;
+        tbInfo.m_isCorrupted = m_yeongymDropPropagation <= tbInfo.m_outputOfEM->m_tbler;
+        // 테스트 출력 메시지(랜덤 밸류)
+        // std::cout<<"[nr-spectrum-phy]::CheckTransportBlockCorruptionStatus : m_random->GetValue : "
+        // <<m_random->GetValue()<<", m_tbler : "<< tbInfo.m_outputOfEM->m_tbler<<std::endl;
+        
+        // 테스트 출력 메시지(m_yeongymDropPropagation)
+        std::cout<<"[nr-spectrum-phy]::CheckTransportBlockCorruptionStatus (RNTI "<<rnti<<") : m_yeongymDropPropagation : "
+        <<m_yeongymDropPropagation<<", m_tbler : "<< tbInfo.m_outputOfEM->m_tbler<<std::endl;
         if (tbInfo.m_isCorrupted)
         {
+            std::cout<<"[Drop] : RNTI " << rnti << " processId " << +tbInfo.m_expected.m_harqProcessId << " size "
+                        << tbInfo.m_expected.m_tbSize << " mcs "
+                        << (uint32_t)tbInfo.m_expected.m_mcs << " rank " << +tbInfo.m_expected.m_rank
+                        << " bitmap " << tbInfo.m_expected.m_rbBitmap.size()
+                        << " rv from MAC: " << +tbInfo.m_expected.m_rv<<" average sinr: "<<tbInfo.m_sinrAvg
+                        << " elements in the history: " << harqInfoList.size() << " TBLER "
+                        << tbInfo.m_outputOfEM->m_tbler << " corrupted " << tbInfo.m_isCorrupted<<std::endl;
             NS_LOG_INFO(
                 "RNTI " << rnti << " processId " << +tbInfo.m_expected.m_harqProcessId << " size "
                         << tbInfo.m_expected.m_tbSize << " mcs "
@@ -1348,6 +1367,16 @@ NrSpectrumPhy::CheckTransportBlockCorruptionStatus()
                         << " rv from MAC: " << +tbInfo.m_expected.m_rv
                         << " elements in the history: " << harqInfoList.size() << " TBLER "
                         << tbInfo.m_outputOfEM->m_tbler << " corrupted " << tbInfo.m_isCorrupted);
+        }
+        else
+        {
+            std::cout<<"[Success] : RNTI "<< rnti <<" processId " << +tbInfo.m_expected.m_harqProcessId << " size "
+                        << tbInfo.m_expected.m_tbSize << " mcs "
+                        << (uint32_t)tbInfo.m_expected.m_mcs << " rank " << +tbInfo.m_expected.m_rank
+                        << " bitmap " << tbInfo.m_expected.m_rbBitmap.size()
+                        << " rv from MAC: " << +tbInfo.m_expected.m_rv<<" average sinr: "<<tbInfo.m_sinrAvg
+                        << " elements in the history: " << harqInfoList.size() << " TBLER "
+                        << tbInfo.m_outputOfEM->m_tbler << " corrupted " << tbInfo.m_isCorrupted<<std::endl;
         }
     }
 }
@@ -1457,10 +1486,14 @@ NrSpectrumPhy::ProcessReceivedPacketBurst()
 
             if (!tbInfo.m_isCorrupted)
             {
+                // 데이터 수신 성공 로그 출력
+                std::cout<<"TB success\n";
                 m_phyRxDataEndOkCallback(packet);
             }
             else
             {
+                // 데이터 드랍 로그 출력
+                std::cout<<"TB failed\n";
                 NS_LOG_INFO("TB failed");
             }
 
@@ -1506,6 +1539,11 @@ NrSpectrumPhy::ProcessReceivedPacketBurst()
     }
 }
 
+/**
+ * phy layer에서 패킷 수신 처리하는 메서드
+ * CheckTransportBlockCorruptionStatus로 패킷의 에러율을 검사해서 패킷 드랍 여부 결정
+ * 
+ */
 void
 NrSpectrumPhy::EndRxData()
 {
@@ -1515,6 +1553,7 @@ NrSpectrumPhy::EndRxData()
     NS_ASSERT(m_state == RX_DATA);
 
     // check if transport blocks are corrupted
+    // transport block의 에러율을 검사하고 데이터 패킷의 드랍 여부를 결정함.
     CheckTransportBlockCorruptionStatus();
 
     // trace packet bursts, then receive non-corrupted and send harq feedback

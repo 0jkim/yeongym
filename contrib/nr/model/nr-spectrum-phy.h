@@ -672,8 +672,11 @@ class NrSpectrumPhy : public SpectrumPhy
                                         //!< starts to occupy the channel with data transmission
     TracedCallback<Time> m_txCtrlTrace; //!< trace callback that is notifying when this spectrum phy
                                         //!< starts to occupy the channel with transmission of CTRL
+    
+    // gNB가 데이터 패킷 수신받는 시점의 트레이싱 콜백 함수
     TracedCallback<RxPacketTraceParams>
         m_rxPacketTraceGnb; //!< trace callback that is notifying when Gnb received the packet
+
     TracedCallback<RxPacketTraceParams>
         m_rxPacketTraceUe; //!< trace callback that is notifying when UE received the packet
     TracedCallback<GnbPhyPacketCountParameter>
@@ -704,6 +707,8 @@ class NrSpectrumPhy : public SpectrumPhy
     bool m_enableDlDataPathlossTrace =
         false; //!< By default this trace is disabled to not slow done simulations
     bool m_isGnb = false;
+
+    double m_yeongymDropPropagation = 0.1;
 };
 
 } // namespace ns3
