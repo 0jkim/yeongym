@@ -11,6 +11,7 @@
 #include "nr-mac-scheduler-ofdma.h"
 
 #include "nr-fh-control.h"
+#include "nr-mac-scheduler-ofdma-ai.h"
 
 #include <ns3/log.h>
 
@@ -371,9 +372,28 @@ NrMacSchedulerOfdma::AssignULRBG(uint32_t symAvail, const ActiveUeMap& activeUl)
         {
             BeforeUlSched(ue, FTResources(rbgAssignable, beamSym));
         }
-        
+
         while (resources > 0)
         {
+            if (m_activeUlAi)
+            {
+                std::cout << "[nr-mac-scheduler-ofdma] <AssignULRBG> : m_activeUlAi == true\n";
+                // this 포인터를 NrMacSchedulerOfdmaAi로 캐스팅
+                auto aiScheduler = dynamic_cast<const NrMacSchedulerOfdmaAi*>(this);
+                if (aiScheduler != nullptr)
+                {
+                    aiScheduler->CallNotifyUlFn(ueVector);
+                }
+                else
+                {
+                    NS_FATAL_ERROR(
+                        "m_activeUlAi is true, but dynamic_cast to NrMacSchedulerOfdmaAi failed");
+                }
+            }
+            else
+            {
+                std::cout << "[nr-mac-scheduler-ofdma] <AssignULRBG> : m_activeUlAi == false\n";
+            }
             GetFirst GetUe;
             std::stable_sort(ueVector.begin(), ueVector.end(), GetUeCompareUlFn());
             auto schedInfoIt = ueVector.begin();
