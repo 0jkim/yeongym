@@ -235,7 +235,9 @@ class NrMacSchedulerNs3 : public NrMacScheduler
 {
   public:
     std::unordered_map<uint16_t, std::queue<uint64_t>>
-        ns3_packet_Ctime_queue_map; // ns3-scheduler용 rnti별 패킷 생성시간 큐 맵 변수.
+        ns3_packet_Ctime_queue_map; // ns3-scheduler용 rnti별 패킷 생성시간 큐 맵 변수
+    std::unordered_map<uint16_t, bool>
+        ns3_harqAckResult_map; // ns3-scheduler용 rnti별 harq ACK result 큐 맵 변수
 
     template <typename T>
     void HandleHarqFeedback(const T& feedback, bool should_pop)
@@ -268,14 +270,31 @@ class NrMacSchedulerNs3 : public NrMacScheduler
         auto it = ns3_packet_Ctime_queue_map.find(ueRnti);
         if (it != ns3_packet_Ctime_queue_map.end())
         {
-            uint64_t m_aoi = Simulator::Now().GetMicroSeconds()-it->second.front();
-            std::cout<<"[nr-mac-scheduler-ns3] : rnti "<<ueRnti<<"의 AoI = "<<m_aoi<<std::endl;
+            uint64_t m_aoi = Simulator::Now().GetMicroSeconds() - it->second.front();
+            NS_LOG_UNCOND("[nr-mac-scheduler-ns3] : rnti " << ueRnti << "의 AoI = " << m_aoi);
             return m_aoi;
         }
         else
         {
             return 0;
         }
+    }
+
+    bool GetHarqAckResult(uint16_t ueRnti) const
+    {
+        auto it = ns3_harqAckResult_map.find(ueRnti);
+
+        if (it == ns3_harqAckResult_map.end())
+        {
+            NS_LOG_UNCOND("[nr-mac-scheduler-ns3] : 해당 RNTI가 harqAckResult_map에 존재하지 않음");
+            return false;
+        }
+
+        bool m_HarqAckResult = it->second;
+        NS_LOG_UNCOND("[nr-mac-scheduler-ns3] : rnti "
+                      << ueRnti << "의 이전 tti의 데이터 전송 결과 = " << m_HarqAckResult);
+
+        return m_HarqAckResult;
     }
 
     /**

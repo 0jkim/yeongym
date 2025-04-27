@@ -193,8 +193,8 @@ main(int argc, char* argv[])
     // LogComponentEnable("NrGnbMac", LOG_LEVEL_INFO);
     // LogComponentEnable("NrMacSchedulerCQIManagement", LOG_LEVEL_INFO);
     // LogComponentEnable("NrSpectrumPhy", LOG_LEVEL_INFO);
-    LogComponentEnable("NrUeRrc", LOG_LEVEL_INFO);
-    LogComponentEnable("NrGnbRrc", LOG_LEVEL_INFO);
+    // LogComponentEnable("NrUeRrc", LOG_LEVEL_INFO);
+    // LogComponentEnable("NrGnbRrc", LOG_LEVEL_INFO);
     RngSeedManager::SetSeed(2); // 시드 값 설정
     RngSeedManager::SetRun(2);  // 런 번호 설정
 
@@ -368,9 +368,10 @@ main(int argc, char* argv[])
 
         // AI 환경 객체 생성
         Ptr<NrMacSchedulerAiNs3GymEnv> env = CreateObject<NrMacSchedulerAiNs3GymEnv>();
-
+        Ptr<NrMacSchedulerOfdmaAi> scheduler = CreateObject<NrMacSchedulerOfdmaAi>();
         Ptr<OpenGymInterface> interface = CreateObject<OpenGymInterface>(openGymPort);
         env->SetOpenGymInterface(interface);
+        env->SetScheduler(scheduler);
 
         nrHelper->SetSchedulerAttribute(
             "NotifyCbUl",
@@ -383,7 +384,7 @@ main(int argc, char* argv[])
     nrHelper->SetSchedulerAttribute("SrsSymbols", UintegerValue(4));
 
     // === HARQ retransmit packets setting ===
-    nrHelper->SetSchedulerAttribute("EnableHarqReTx", BooleanValue(true));
+    nrHelper->SetSchedulerAttribute("EnableHarqReTx", BooleanValue(false));
     // Config::SetDefault("ns3::NrHelper::HarqEnabled", BooleanValue(false));
 
     // === Channel update period setting ===
@@ -421,14 +422,14 @@ main(int argc, char* argv[])
     CcBwpCreator::SimpleOperationBandConf bandConf1(centralFrequencyBand1,
                                                     bandwidthBand1,
                                                     numCcPerBand,
-                                                    BandwidthPartInfo::UMa_LoS);
+                                                    BandwidthPartInfo::UMa_nLoS);
     OperationBandInfo band1 = ccBwpCreator.CreateOperationBandContiguousCc(bandConf1);
     nrHelper->InitializeOperationBand(&band1, bandMask);
     allBwps = CcBwpCreator::GetAllBwps({band1});
 
     // Setting tx power
     nrHelper->SetUePhyAttribute("TxPower", DoubleValue(23.0));  // UE: 23 dBm
-    nrHelper->SetGnbPhyAttribute("TxPower", DoubleValue(43.0)); // gNB: 43 dBm
+    nrHelper->SetGnbPhyAttribute("TxPower", DoubleValue(30.0)); // gNB: 30 dBm
 
     // Antennas for all the UEs
     nrHelper->SetUeAntennaAttribute("NumRows", UintegerValue(2));

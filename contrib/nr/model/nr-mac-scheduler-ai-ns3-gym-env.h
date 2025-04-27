@@ -8,10 +8,12 @@
 #if __has_include("ns3/opengym-module.h")
 #define HAVE_OPENGYM
 
+#include "nr-mac-scheduler-ns3.h"
+#include "nr-mac-scheduler-ue-info-ai.h"
+
 #include "ns3/core-module.h"
 #include "ns3/nr-module.h"
 #include "ns3/opengym-module.h"
-#include "nr-mac-scheduler-ue-info-ai.h"
 
 namespace ns3
 {
@@ -120,7 +122,7 @@ class NrMacSchedulerAiNs3GymEnv : public OpenGymEnv
      * policy.
      */
     float GetReward() override;
-    
+
     /**
      * @brief Get extra information from the environment
      * @return additional information associated with current environment state
@@ -166,6 +168,11 @@ class NrMacSchedulerAiNs3GymEnv : public OpenGymEnv
     // 상태와 보상 업데이트를 위한 메서드
     void UpdateState(const std::vector<double>& observations, float reward);
 
+    void SetScheduler(Ptr<NrMacSchedulerNs3> scheduler)
+    {
+        m_scheduler = scheduler;
+    }
+
   private:
     uint32_t m_numFlows; //!< The number of flows in the environment
     bool m_gameOver;     //!< Whether the current game/episode is over
@@ -174,6 +181,9 @@ class NrMacSchedulerAiNs3GymEnv : public OpenGymEnv
     std::string m_extraInfo; //!< Additional information for logging or debugging
     NrMacSchedulerUeInfoAi::UpdateAllUeWeightsFn
         m_updateAllUeWeightsFn; //!< Callback function to update UE weights
+    uint32_t m_maxSteps = 10000;
+    uint32_t m_currentStep = 0;
+    Ptr<NrMacSchedulerNs3> m_scheduler;
 };
 } // namespace ns3
 #endif

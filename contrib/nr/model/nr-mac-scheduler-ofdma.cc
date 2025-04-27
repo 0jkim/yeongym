@@ -377,11 +377,11 @@ NrMacSchedulerOfdma::AssignULRBG(uint32_t symAvail, const ActiveUeMap& activeUl)
         {
             if (m_activeUlAi)
             {
-                std::cout << "[nr-mac-scheduler-ofdma] <AssignULRBG> : m_activeUlAi == true\n";
                 // this 포인터를 NrMacSchedulerOfdmaAi로 캐스팅
                 auto aiScheduler = dynamic_cast<const NrMacSchedulerOfdmaAi*>(this);
                 if (aiScheduler != nullptr)
                 {
+                    // NS_LOG_UNCOND("[scheduler-ofdma] <AssignULRBG> : CallNotufyFn 시작");
                     aiScheduler->CallNotifyUlFn(ueVector);
                 }
                 else
@@ -390,10 +390,8 @@ NrMacSchedulerOfdma::AssignULRBG(uint32_t symAvail, const ActiveUeMap& activeUl)
                         "m_activeUlAi is true, but dynamic_cast to NrMacSchedulerOfdmaAi failed");
                 }
             }
-            else
-            {
-                std::cout << "[nr-mac-scheduler-ofdma] <AssignULRBG> : m_activeUlAi == false\n";
-            }
+            // NS_LOG_UNCOND("[scheduler-ofdma] <AssignULRBG> : CallNotufyFn 끝");
+
             GetFirst GetUe;
             std::stable_sort(ueVector.begin(), ueVector.end(), GetUeCompareUlFn());
             auto schedInfoIt = ueVector.begin();

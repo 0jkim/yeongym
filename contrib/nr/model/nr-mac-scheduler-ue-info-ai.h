@@ -71,9 +71,10 @@ class NrMacSchedulerUeInfoAi : public NrMacSchedulerUeInfoQos
         uint8_t priority;
         uint16_t holDelay;
 
-        // aoi, cqi state 추가
+        // aoi, cqi state, HarqAckResult 추가
         uint64_t aoi;
         uint8_t cqi;
+        // float sinr;
     };
 
     /**
@@ -101,10 +102,14 @@ class NrMacSchedulerUeInfoAi : public NrMacSchedulerUeInfoQos
 
     uint64_t GetAoi() const;
     uint8_t GetCqi() const;
+    float GetSinrInfo() const;
 
     void UpdateAoi(uint64_t aoi);
     void UpdateCqi(uint8_t cqi);
+    void UpdateHarqAckResult(bool harqAckResult);
+    void UpdateSinr(float sinr);
 
+    bool GetHarqAckResult();
     /**
      * @brief Reset DL AI scheduler info
      *
@@ -249,6 +254,9 @@ class NrMacSchedulerUeInfoAi : public NrMacSchedulerUeInfoQos
 
     uint64_t m_aoi = 0;
     uint8_t m_cqi = 0;
+    float sinr = 0.0;
+    bool m_harqAckResult; // reward 계산 할 때, agent의 action에 대한 outcome shaping을
+                          // 위해서 HARQ ACk/NACK 메시지를 확인
 };
 
 } // namespace ns3

@@ -2521,6 +2521,9 @@ NrMacSchedulerNs3::DoSchedUlTriggerReq(
 {
     NS_LOG_FUNCTION(this);
 
+    // gNB로부터 가져온 Harq Ack Result 저장
+    ns3_harqAckResult_map = params.sched_UlHarq;
+
     // process received CQIs
     m_cqiManagement.RefreshUlCqiMaps(m_ueMap);
 
@@ -2572,6 +2575,7 @@ NrMacSchedulerNs3::DoSchedUlTriggerReq(
 
         ProcessHARQFeedbacks(&ulHarqFeedback, NrMacSchedulerUeInfo::GetUlHarqVector, "UL");
     }
+
     ScheduleUl(params, ulHarqFeedback);
 }
 

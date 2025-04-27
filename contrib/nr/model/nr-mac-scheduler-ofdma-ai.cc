@@ -198,11 +198,9 @@ void
 NrMacSchedulerOfdmaAi::CallNotifyUlFn(
     const std::vector<NrMacSchedulerNs3::UePtrAndBufferReq>& ueVector) const
 {
-    std::cout << "[nr-mac-scheduler-ofdma-ai] <CallNotifyUlFn>\n";
     NS_LOG_FUNCTION(this);
     if (!m_notifyCbUl.IsNull())
     {
-        std::cout << "[nr-mac-scheduler-ofdma-ai] <CallNotifyUlFn> : !m_notifyCbUl.IsNull()\n";
         std::string extraInfo = "";
         NrMacSchedulerUeInfoAi::UpdateAllUeWeightsFn updateWeightsFn =
             std::bind(&NrMacSchedulerOfdmaAi::UpdateAllUeWeightsUl,
@@ -249,6 +247,8 @@ NrMacSchedulerOfdmaAi::UpdateAllUeWeightsUl(
         auto found = ueWeights.find(rnti);
         if (found != ueWeights.end())
         {
+            // NS_LOG_UNCOND("[ofdma-ai] <UpdateAllUeWeightsUl> ue "
+            //               << rnti << "의 weight를 " << found->second << "로 업데이트");
             uePtr->UpdateUlWeights(found->second);
         }
         else
@@ -258,14 +258,19 @@ NrMacSchedulerOfdmaAi::UpdateAllUeWeightsUl(
     }
 }
 
-void NrMacSchedulerOfdmaAi::BeforeUlSched (const UePtrAndBufferReq &ue, const FTResources &assignableInIteration) const
+void
+NrMacSchedulerOfdmaAi::BeforeUlSched(const UePtrAndBufferReq& ue,
+                                     const FTResources& assignableInIteration) const
 {
-    NS_LOG_FUNCTION (this);
-    auto uePtr = std::dynamic_pointer_cast<NrMacSchedulerUeInfoAi> (ue.first);
-    uint16_t ue_rnti = ue.first->GetRnti ();
-    uint64_t ue_aoi = this->GetAge (ue_rnti);
+    NS_LOG_FUNCTION(this);
+    auto uePtr = std::dynamic_pointer_cast<NrMacSchedulerUeInfoAi>(ue.first);
+    uint16_t ue_rnti = ue.first->GetRnti();
+    uint64_t ue_aoi = this->GetAge(ue_rnti);
+    bool ue_harqAckResult = this->GetHarqAckResult(ue_rnti);
     // uint32_t ue_WMA = this->GetWMA(ue_rnti);
-    uePtr->UpdateAoi (ue_aoi);
+    uePtr->UpdateAoi(ue_aoi);
+    uePtr->UpdateHarqAckResult(ue_harqAckResult);
+
     // uePtr->IncrementNiceCount(ue_WMA);
 }
 

@@ -170,10 +170,10 @@ class NrMacSchedulerOfdmaAi : public NrMacSchedulerOfdmaQos
     void UpdateAllUeWeightsUl(
         const NrMacSchedulerUeInfoAi::UeWeightsMap& ueWeights,
         const std::vector<NrMacSchedulerNs3::UePtrAndBufferReq>& ueVector) const;
-    
-    virtual void BeforeUlSched (const UePtrAndBufferReq &ue,
-        const FTResources &assignableInIteration) const override;
-        
+
+    virtual void BeforeUlSched(const UePtrAndBufferReq& ue,
+                               const FTResources& assignableInIteration) const override;
+
   private:
     float m_alpha{0.0};                            //!< PF Fairness index
     NrMacSchedulerUeInfoAi::NotifyCb m_notifyCbDl; //!< Notify callback function for downlink
